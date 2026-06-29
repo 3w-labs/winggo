@@ -1,6 +1,6 @@
 services:
   vane:
-    image: ghcr.io/3w-labs/perplexica:latest
+    image: ghcr.io/3w-labs/winggo:latest
     build:
       context: .
     ports:
