@@ -99,6 +99,7 @@ const webSearchAction: ResearchAction<typeof actionSchema> = {
       llm: additionalConfig.llm,
       embedding: additionalConfig.embedding,
       mode: additionalConfig.mode,
+      realtimeSearch: additionalConfig.realtimeSearch,
       queries: input.queries,
       researchBlock: researchBlock,
       session: additionalConfig.session,

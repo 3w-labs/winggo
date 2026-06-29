@@ -1,6 +1,6 @@
 services:
   vane:
-    image: itzcrazykns1337/vane:latest
+    image: ghcr.io/3w-labs/perplexica:latest
     build:
       context: .
     ports:

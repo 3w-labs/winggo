@@ -12,6 +12,7 @@ import { splitText } from '@/lib/utils/splitText';
 export const executeSearch = async (input: {
   queries: string[];
   mode: SearchAgentConfig['mode'];
+  realtimeSearch?: boolean;
   searchConfig?: SearxngSearchOptions;
   researchBlock: ResearchBlock;
   session: InstanceType<typeof SessionManager>;
@@ -43,6 +44,7 @@ export const executeSearch = async (input: {
     const search = async (q: string) => {
       const res = await searchSearxng(q, {
         ...(input.searchConfig ? input.searchConfig : {}),
+        ...(input.realtimeSearch ? { time_range: 'day' as const } : {}),
       });
 
       let resultChunks: Chunk[] = [];
@@ -178,6 +180,7 @@ export const executeSearch = async (input: {
     const search = async (q: string) => {
       const res = await searchSearxng(q, {
         ...(input.searchConfig ? input.searchConfig : {}),
+        ...(input.realtimeSearch ? { time_range: 'day' as const } : {}),
       });
 
       let resultChunks: Chunk[] = [];

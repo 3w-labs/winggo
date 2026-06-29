@@ -23,6 +23,7 @@ class ActionRegistry {
     classification: ClassifierOutput;
     fileIds: string[];
     mode: SearchAgentConfig['mode'];
+    realtimeSearch: boolean;
     sources: SearchSources[];
   }): ResearchAction[] {
     return Array.from(
@@ -34,6 +35,7 @@ class ActionRegistry {
     classification: ClassifierOutput;
     fileIds: string[];
     mode: SearchAgentConfig['mode'];
+    realtimeSearch: boolean;
     sources: SearchSources[];
   }): Tool[] {
     const availableActions = this.getAvailableActions(config);
@@ -49,6 +51,7 @@ class ActionRegistry {
     classification: ClassifierOutput;
     fileIds: string[];
     mode: SearchAgentConfig['mode'];
+    realtimeSearch: boolean;
     sources: SearchSources[];
   }): string {
     const availableActions = this.getAvailableActions(config);
@@ -68,6 +71,7 @@ class ActionRegistry {
       researchBlockId: string;
       fileIds: string[];
       mode: SearchAgentConfig['mode'];
+      realtimeSearch: boolean;
     },
   ) {
     const action = this.actions.get(name);
@@ -85,6 +89,7 @@ class ActionRegistry {
       researchBlockId: string;
       fileIds: string[];
       mode: SearchAgentConfig['mode'];
+      realtimeSearch: boolean;
     },
   ): Promise<ActionOutput[]> {
     const results: ActionOutput[] = [];

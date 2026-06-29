@@ -36,6 +36,14 @@ Thumbs.db
 
 # Db
 db.sqlite
-/searxng
+/searxng/*
+!/searxng/limiter.toml
+!/searxng/settings.yml
+!/searxng/uwsgi.ini
+!/searxng/engines/
+!/searxng/engines/naver_web.py
+!/searxng/engines/naver_blog.py
+!/searxng/engines/korean_site_search.py
+!/searxng/engines/fmkorea_google.py
 
 certificates

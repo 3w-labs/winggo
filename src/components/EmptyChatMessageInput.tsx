@@ -6,11 +6,12 @@ import Optimization from './MessageInputActions/Optimization';
 import Attach from './MessageInputActions/Attach';
 import { useChat } from '@/lib/hooks/useChat';
 import ModelSelector from './MessageInputActions/ChatModelSelector';
+import { cn } from '@/lib/utils';
+import SearchButtonLoader from './ui/SearchButtonLoader';
 
 const EmptyChatMessageInput = () => {
-  const { sendMessage } = useChat();
+  const { loading, sendMessage } = useChat();
 
-  /* const [copilotEnabled, setCopilotEnabled] = useState(false); */
   const [message, setMessage] = useState('');
 
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -43,11 +44,12 @@ const EmptyChatMessageInput = () => {
     <form
       onSubmit={(e) => {
         e.preventDefault();
+        if (loading) return;
         sendMessage(message);
         setMessage('');
       }}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
+        if (e.key === 'Enter' && !e.shiftKey && !loading) {
           e.preventDefault();
           sendMessage(message);
           setMessage('');
@@ -55,7 +57,12 @@ const EmptyChatMessageInput = () => {
       }}
       className="w-full"
     >
-      <div className="flex flex-col bg-light-secondary dark:bg-dark-secondary px-3 pt-5 pb-3 rounded-2xl w-full border border-light-200 dark:border-dark-200 shadow-sm shadow-light-200/10 dark:shadow-black/20 transition-all duration-200 focus-within:border-light-300 dark:focus-within:border-dark-300">
+      <div
+        className={cn(
+          'flex flex-col bg-light-secondary dark:bg-dark-secondary px-3 pt-5 pb-3 rounded-2xl w-full border border-light-200 dark:border-dark-200 shadow-sm shadow-light-200/10 dark:shadow-black/20 transition-all duration-200 focus-within:border-light-300 dark:focus-within:border-dark-300',
+          loading && 'searching-prompt-border',
+        )}
+      >
         <TextareaAutosize
           ref={inputRef}
           value={message}
@@ -73,10 +80,19 @@ const EmptyChatMessageInput = () => {
               <Attach />
             </div>
             <button
-              disabled={message.trim().length === 0}
-              className="bg-sky-500 text-white disabled:text-black/50 dark:disabled:text-white/50 disabled:bg-[#e0e0dc] dark:disabled:bg-[#ececec21] hover:bg-opacity-85 transition duration-100 rounded-full p-2"
+              disabled={message.trim().length === 0 || loading}
+              className={cn(
+                'text-white hover:bg-opacity-85 transition duration-100 rounded-full p-2 min-w-8 min-h-8 flex items-center justify-center',
+                loading
+                  ? 'bg-sky-500'
+                  : 'bg-sky-500 disabled:text-black/50 dark:disabled:text-white/50 disabled:bg-[#e0e0dc] dark:disabled:bg-[#ececec21]',
+              )}
             >
-              <ArrowRight className="bg-background" size={17} />
+              {loading ? (
+                <SearchButtonLoader />
+              ) : (
+                <ArrowRight className="bg-background" size={17} />
+              )}
             </button>
           </div>
         </div>

@@ -23,6 +23,7 @@ class Researcher {
       classification: input.classification,
       fileIds: input.config.fileIds,
       mode: input.config.mode,
+      realtimeSearch: input.config.realtimeSearch,
       sources: input.config.sources,
     });
 
@@ -31,6 +32,7 @@ class Researcher {
         classification: input.classification,
         fileIds: input.config.fileIds,
         mode: input.config.mode,
+        realtimeSearch: input.config.realtimeSearch,
         sources: input.config.sources,
       });
 
@@ -51,6 +53,11 @@ class Researcher {
           <conversation>
           ${formatChatHistoryAsString(input.chatHistory.slice(-10))}
            User: ${input.followUp} (Standalone question: ${input.classification.standaloneFollowUp})
+           ${
+             input.config.realtimeSearch
+               ? `Realtime search is enabled. Prioritize fresh results from today or the most recent available sources. Current date: ${new Date().toISOString().slice(0, 10)}.`
+               : ''
+           }
            </conversation>
         `,
       },
@@ -168,6 +175,7 @@ class Researcher {
         researchBlockId: researchBlockId,
         fileIds: input.config.fileIds,
         mode: input.config.mode,
+        realtimeSearch: input.config.realtimeSearch,
       });
 
       actionOutput.push(...actionResults);

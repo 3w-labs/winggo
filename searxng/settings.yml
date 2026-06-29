@@ -13,5 +13,96 @@ server:
   secret_key: 'a2fb23f1b02e6ee83875b09826990de0f6bd908b6638e8c10277d415f6ab852b' # Is overwritten by ${SEARXNG_SECRET}
 
 engines:
+  - name: naver
+    engine: naver_web
+    shortcut: nvr
+    categories: [general, web]
+    disabled: false
+
+  - name: naver images
+    disabled: false
+
+  - name: naver news
+    disabled: false
+
+  - name: naver blog
+    engine: naver_blog
+    shortcut: nvrb
+    categories: [general, social media]
+    disabled: false
+
+  - name: naver videos
+    disabled: false
+
+  - name: tistory
+    engine: korean_site_search
+    shortcut: tis
+    categories: [general, social media]
+    site_query: tistory.com
+    allowed_domains: [tistory.com]
+    disabled: false
+
+  - name: dcinside
+    engine: korean_site_search
+    shortcut: dci
+    categories: [general, social media]
+    site_query: dcinside.com
+    allowed_domains: [dcinside.com]
+    disabled: false
+
+  - name: fmkorea
+    engine: fmkorea_google
+    shortcut: fmk
+    categories: [general, social media]
+    disabled: false
+
+  - name: clien
+    engine: korean_site_search
+    shortcut: cli
+    categories: [general, social media]
+    site_query: clien.net
+    allowed_domains: [clien.net]
+    disabled: false
+
+  - name: ruliweb
+    engine: korean_site_search
+    shortcut: ruli
+    categories: [general, social media]
+    site_query: ruliweb.com
+    allowed_domains: [ruliweb.com]
+    disabled: false
+
+  - name: ppomppu
+    engine: korean_site_search
+    shortcut: ppom
+    categories: [general, social media]
+    site_query: ppomppu.co.kr
+    allowed_domains: [ppomppu.co.kr]
+    disabled: false
+
+  - name: theqoo
+    engine: korean_site_search
+    shortcut: tq
+    categories: [general, social media]
+    site_query: theqoo.net
+    allowed_domains: [theqoo.net]
+    disabled: false
+
+  - name: instiz
+    engine: korean_site_search
+    shortcut: ins
+    categories: [general, social media]
+    site_query: instiz.net
+    allowed_domains: [instiz.net]
+    disabled: false
+
+  - name: bobaedream
+    engine: korean_site_search
+    shortcut: bobae
+    categories: [general, social media]
+    site_query: bobaedream.co.kr
+    allowed_domains: [bobaedream.co.kr]
+    disabled: false
+
   - name: wolframalpha
     disabled: false

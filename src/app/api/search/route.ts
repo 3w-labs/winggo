@@ -13,6 +13,7 @@ interface ChatRequestBody {
   query: string;
   history: Array<[string, string]>;
   stream?: boolean;
+  realtimeSearch?: boolean;
   systemInstructions?: string;
 }
 
@@ -57,6 +58,7 @@ export const POST = async (req: Request) => {
         embedding: embeddings,
         llm: llm,
         sources: body.sources,
+        realtimeSearch: body.realtimeSearch ?? false,
         mode: body.optimizationMode,
         fileIds: [],
         systemInstructions: body.systemInstructions || '',

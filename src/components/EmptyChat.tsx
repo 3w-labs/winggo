@@ -5,25 +5,20 @@ import { Settings } from 'lucide-react';
 import EmptyChatMessageInput from './EmptyChatMessageInput';
 import { File } from './ChatWindow';
 import Link from 'next/link';
-import WeatherWidget from './WeatherWidget';
 import NewsArticleWidget from './NewsArticleWidget';
+import TrendingSearchWidget from './TrendingSearchWidget';
 import SettingsButtonMobile from '@/components/Settings/SettingsButtonMobile';
 import {
   getShowNewsWidget,
-  getShowWeatherWidget,
 } from '@/lib/config/clientRegistry';
 
 const EmptyChat = () => {
-  const [showWeather, setShowWeather] = useState(() =>
-    typeof window !== 'undefined' ? getShowWeatherWidget() : true,
-  );
   const [showNews, setShowNews] = useState(() =>
     typeof window !== 'undefined' ? getShowNewsWidget() : true,
   );
 
   useEffect(() => {
     const updateWidgetVisibility = () => {
-      setShowWeather(getShowWeatherWidget());
       setShowNews(getShowNewsWidget());
     };
 
@@ -53,20 +48,16 @@ const EmptyChat = () => {
           </h2>
           <EmptyChatMessageInput />
         </div>
-        {(showWeather || showNews) && (
-          <div className="flex flex-col w-full gap-4 mt-2 sm:flex-row sm:justify-center">
-            {showWeather && (
-              <div className="flex-1 w-full">
-                <WeatherWidget />
-              </div>
-            )}
-            {showNews && (
-              <div className="flex-1 w-full">
-                <NewsArticleWidget />
-              </div>
-            )}
+        <div className="flex flex-col w-full gap-4 mt-2 sm:flex-row sm:justify-center">
+          <div className="flex-1 w-full">
+            <TrendingSearchWidget />
           </div>
-        )}
+          {showNews && (
+            <div className="flex-1 w-full">
+              <NewsArticleWidget />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

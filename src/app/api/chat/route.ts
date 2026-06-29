@@ -37,6 +37,7 @@ const bodySchema = z.object({
     message: 'Optimization mode must be one of: speed, balanced, quality',
   }),
   sources: z.array(z.string()).optional().default([]),
+  realtimeSearch: z.boolean().optional().default(false),
   history: z
     .array(z.tuple([z.string(), z.string()]))
     .optional()
@@ -219,6 +220,7 @@ export const POST = async (req: Request) => {
         llm,
         embedding: embedding,
         sources: body.sources as SearchSources[],
+        realtimeSearch: body.realtimeSearch,
         mode: body.optimizationMode,
         fileIds: body.files,
         systemInstructions: body.systemInstructions || 'None',

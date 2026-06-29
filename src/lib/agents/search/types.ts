@@ -12,6 +12,7 @@ export type SearchAgentConfig = {
   llm: BaseLLM<any>;
   embedding: BaseEmbedding<any>;
   mode: 'speed' | 'balanced' | 'quality';
+  realtimeSearch: boolean;
   systemInstructions: string;
 };
 
@@ -111,6 +112,7 @@ export interface ResearchAction<
     fileIds: string[];
     mode: SearchAgentConfig['mode'];
     sources: SearchSources[];
+    realtimeSearch: boolean;
   }) => boolean;
   execute: (
     params: z.infer<TSchema>,
@@ -118,6 +120,7 @@ export interface ResearchAction<
       researchBlockId: string;
       fileIds: string[];
       mode: SearchAgentConfig['mode'];
+      realtimeSearch: boolean;
     },
   ) => Promise<ActionOutput>;
 }

@@ -15,6 +15,28 @@ export interface Discover {
 }
 
 const topics: { key: string; display: string }[] = [
+  // 한국어 토픽 (우선 표시)
+  {
+    display: '한국 뉴스',
+    key: 'korea',
+  },
+  {
+    display: 'IT·테크',
+    key: 'tech-kr',
+  },
+  {
+    display: '경제·금융',
+    key: 'finance-kr',
+  },
+  {
+    display: '연예·문화',
+    key: 'entertainment-kr',
+  },
+  {
+    display: '스포츠',
+    key: 'sports-kr',
+  },
+  // 영어 토픽 (기존)
   {
     display: 'Tech & Science',
     key: 'tech',
@@ -40,7 +62,7 @@ const topics: { key: string; display: string }[] = [
 const Page = () => {
   const [discover, setDiscover] = useState<Discover[] | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTopic, setActiveTopic] = useState<string>(topics[0].key);
+  const [activeTopic, setActiveTopic] = useState<string>('korea');
 
   const fetchArticles = async (topic: string) => {
     setLoading(true);
@@ -58,9 +80,9 @@ const Page = () => {
         throw new Error(data.message);
       }
 
-      data.blogs = data.blogs.filter((blog: Discover) => blog.thumbnail);
-
-      setDiscover(data.blogs);
+      // 썸네일 있는 걸 우선하지만, 한국 뉴스는 썸네일이 적을 수 있으니 필터를 완화
+      const withThumb = data.blogs.filter((blog: Discover) => blog.thumbnail);
+      setDiscover(withThumb.length > 4 ? withThumb : data.blogs);
     } catch (err: any) {
       console.error('Error fetching data:', err.message);
       toast.error('Error fetching data');

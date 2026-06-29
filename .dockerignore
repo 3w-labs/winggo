@@ -1,1 +1,10 @@
 **/node_modules
+.git
+.next
+data
+logs
+coverage
+certificates
+*.log
+.env
+.env.*

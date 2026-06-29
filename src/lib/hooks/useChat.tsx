@@ -37,6 +37,7 @@ type ChatContext = {
   sources: string[];
   chatId: string | undefined;
   optimizationMode: string;
+  realtimeSearch: boolean;
   isMessagesLoaded: boolean;
   loading: boolean;
   notFound: boolean;
@@ -48,6 +49,7 @@ type ChatContext = {
   researchEnded: boolean;
   setResearchEnded: (ended: boolean) => void;
   setOptimizationMode: (mode: string) => void;
+  setRealtimeSearch: (enabled: boolean) => void;
   setSources: (sources: string[]) => void;
   setFiles: (files: File[]) => void;
   setFileIds: (fileIds: string[]) => void;
@@ -253,6 +255,7 @@ export const chatContext = createContext<ChatContext>({
   sections: [],
   notFound: false,
   optimizationMode: '',
+  realtimeSearch: false,
   chatModelProvider: { key: '', providerId: '' },
   embeddingModelProvider: { key: '', providerId: '' },
   researchEnded: false,
@@ -262,6 +265,7 @@ export const chatContext = createContext<ChatContext>({
   setFiles: () => {},
   setSources: () => {},
   setOptimizationMode: () => {},
+  setRealtimeSearch: () => {},
   setChatModelProvider: () => {},
   setEmbeddingModelProvider: () => {},
   setResearchEnded: () => {},
@@ -289,6 +293,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   const [sources, setSources] = useState<string[]>(['web']);
   const [optimizationMode, setOptimizationMode] = useState('speed');
+  const [realtimeSearch, setRealtimeSearchState] = useState(false);
 
   const [isMessagesLoaded, setIsMessagesLoaded] = useState(false);
 
@@ -312,6 +317,15 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [isReady, setIsReady] = useState(false);
 
   const messagesRef = useRef<Message[]>([]);
+
+  useEffect(() => {
+    setRealtimeSearchState(localStorage.getItem('realtimeSearch') === 'true');
+  }, []);
+
+  const setRealtimeSearch = (enabled: boolean) => {
+    localStorage.setItem('realtimeSearch', String(enabled));
+    setRealtimeSearchState(enabled);
+  };
 
   const sections = useMemo<Section[]>(() => {
     return messages.map((msg) => {
@@ -757,6 +771,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         chatId: chatId!,
         files: fileIds,
         sources: sources,
+        realtimeSearch,
         optimizationMode: optimizationMode,
         history: rewrite
           ? chatHistory.current.slice(
@@ -822,10 +837,12 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         messageAppeared,
         notFound,
         optimizationMode,
+        realtimeSearch,
         setFileIds,
         setFiles,
         setSources,
         setOptimizationMode,
+        setRealtimeSearch,
         rewrite,
         sendMessage,
         setChatModelProvider,
