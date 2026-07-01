@@ -47,3 +47,5 @@ db.sqlite
 !/searxng/engines/fmkorea_google.py
 
 certificates
+
+connection.md
