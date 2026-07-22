@@ -61,14 +61,16 @@ export const executeSearch = async (input: {
       let resultChunks: Chunk[] = [];
 
       try {
-        const queryEmbedding = (await input.embedding.embedText([q]))[0];
+        const queryEmbedding = (
+          await input.embedding.embedText([q], input.signal)
+        )[0];
 
         resultChunks = (
           await Promise.all(
             res.results.map(async (r) => {
               const content = r.content || r.title;
               const chunkEmbedding = (
-                await input.embedding.embedText([content])
+                await input.embedding.embedText([content], input.signal)
               )[0];
 
               return {
@@ -84,6 +86,7 @@ export const executeSearch = async (input: {
           )
         ).filter((c) => c.metadata.similarity > 0.5);
       } catch (err) {
+        throwIfSearchAborted(input.signal);
         resultChunks = res.results.map((r) => {
           const content = r.content || r.title;
 
@@ -393,6 +396,7 @@ export const executeSearch = async (input: {
             input.signal,
           ).catch(
             (err) => {
+              throwIfSearchAborted(input.signal);
               console.log('Error scraping data from', result.metadata.url, err);
             },
           );
@@ -424,6 +428,7 @@ export const executeSearch = async (input: {
 
                 accumulatedContent += extractorOutput.extracted_facts + '\n';
               } catch (err) {
+                throwIfSearchAborted(input.signal);
                 console.log('Error extracting information from chunk', err);
               }
             }),
@@ -434,6 +439,7 @@ export const executeSearch = async (input: {
             content: accumulatedContent,
           });
         } catch (err) {
+          throwIfSearchAborted(input.signal);
           console.log(
             'Error scraping or extracting information from',
             result.metadata.url,
@@ -443,6 +449,7 @@ export const executeSearch = async (input: {
       }),
     );
 
+    throwIfSearchAborted(input.signal);
     return extractedFacts;
   } else {
     return [];

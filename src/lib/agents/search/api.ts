@@ -17,15 +17,18 @@ class APISearchAgent {
       signal: input.signal,
     });
 
-    const widgetPromise = WidgetExecutor.executeAll({
-      classification,
-      chatHistory: input.chatHistory,
-      followUp: input.followUp,
-      llm: input.config.llm,
-    }).catch((err) => {
-      console.error(`Error executing widgets: ${err}`);
-      return [];
-    });
+    const widgetPromise =
+      input.config.widgetsEnabled === false
+        ? Promise.resolve([])
+        : WidgetExecutor.executeAll({
+            classification,
+            chatHistory: input.chatHistory,
+            followUp: input.followUp,
+            llm: input.config.llm,
+          }).catch((err) => {
+            console.error(`Error executing widgets: ${err}`);
+            return [];
+          });
 
     let searchPromise: Promise<ResearcherOutput> | null = null;
 

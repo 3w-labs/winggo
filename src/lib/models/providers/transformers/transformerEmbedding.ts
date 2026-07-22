@@ -13,15 +13,19 @@ class TransformerEmbedding extends BaseEmbedding<TransformerConfig> {
     super(config);
   }
 
-  async embedText(texts: string[]): Promise<number[][]> {
-    return this.embed(texts);
+  async embedText(texts: string[], signal?: AbortSignal): Promise<number[][]> {
+    return this.embed(texts, signal);
   }
 
-  async embedChunks(chunks: Chunk[]): Promise<number[][]> {
-    return this.embed(chunks.map((c) => c.content));
+  async embedChunks(chunks: Chunk[], signal?: AbortSignal): Promise<number[][]> {
+    return this.embed(
+      chunks.map((c) => c.content),
+      signal,
+    );
   }
 
-  private async embed(texts: string[]) {
+  private async embed(texts: string[], signal?: AbortSignal) {
+    signal?.throwIfAborted();
     if (!this.pipelinePromise) {
       this.pipelinePromise = (async () => {
         const { pipeline } = await import('@huggingface/transformers');
@@ -33,7 +37,9 @@ class TransformerEmbedding extends BaseEmbedding<TransformerConfig> {
     }
 
     const pipe = await this.pipelinePromise;
+    signal?.throwIfAborted();
     const output = await pipe(texts, { pooling: 'mean', normalize: true });
+    signal?.throwIfAborted();
     return output.tolist() as number[][];
   }
 }

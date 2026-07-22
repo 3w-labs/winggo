@@ -20,20 +20,20 @@ class OpenAIEmbedding extends BaseEmbedding<OpenAIConfig> {
     });
   }
 
-  async embedText(texts: string[]): Promise<number[][]> {
+  async embedText(texts: string[], signal?: AbortSignal): Promise<number[][]> {
     const response = await this.openAIClient.embeddings.create({
       model: this.config.model,
       input: texts,
-    });
+    }, { signal });
 
     return response.data.map((embedding) => embedding.embedding);
   }
 
-  async embedChunks(chunks: Chunk[]): Promise<number[][]> {
+  async embedChunks(chunks: Chunk[], signal?: AbortSignal): Promise<number[][]> {
     const response = await this.openAIClient.embeddings.create({
       model: this.config.model,
       input: chunks.map((c) => c.content),
-    });
+    }, { signal });
 
     return response.data.map((embedding) => embedding.embedding);
   }

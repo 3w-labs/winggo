@@ -18,22 +18,26 @@ class OllamaEmbedding extends BaseEmbedding<OllamaConfig> {
     });
   }
 
-  async embedText(texts: string[]): Promise<number[][]> {
-    const response = await this.ollamaClient.embed({
+  async embedText(texts: string[], signal?: AbortSignal): Promise<number[][]> {
+    const onAbort = () => this.ollamaClient.abort();
+    signal?.addEventListener('abort', onAbort, { once: true });
+    try {
+      signal?.throwIfAborted();
+      const response = await this.ollamaClient.embed({
       input: texts,
       model: this.config.model,
-    });
-
-    return response.embeddings;
+      });
+      return response.embeddings;
+    } finally {
+      signal?.removeEventListener('abort', onAbort);
+    }
   }
 
-  async embedChunks(chunks: Chunk[]): Promise<number[][]> {
-    const response = await this.ollamaClient.embed({
-      input: chunks.map((c) => c.content),
-      model: this.config.model,
-    });
-
-    return response.embeddings;
+  async embedChunks(chunks: Chunk[], signal?: AbortSignal): Promise<number[][]> {
+    return this.embedText(
+      chunks.map((chunk) => chunk.content),
+      signal,
+    );
   }
 }
 

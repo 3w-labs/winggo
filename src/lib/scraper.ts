@@ -52,6 +52,7 @@ class Scraper {
   ): Promise<{ content: string; title: string }> {
     signal?.throwIfAborted();
     await this.initBrowser();
+    signal?.throwIfAborted();
 
     if (!this.browser) throw new Error('Browser not initialized');
 

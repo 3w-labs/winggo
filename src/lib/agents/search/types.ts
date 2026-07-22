@@ -16,6 +16,7 @@ export type SearchAgentConfig = {
   realtimeSearch: boolean;
   systemInstructions: string;
   searchOptions?: SearxngSearchOptions;
+  widgetsEnabled?: boolean;
 };
 
 export type SearchAgentInput = {
