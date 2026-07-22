@@ -49,3 +49,6 @@ db.sqlite
 certificates
 
 connection.md
+
+# Local Git worktrees
+.worktrees/
