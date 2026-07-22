@@ -8,12 +8,14 @@ import computeSimilarity from '@/lib/utils/computeSimilarity';
 import z from 'zod';
 import Scraper from '@/lib/scraper';
 import { splitText } from '@/lib/utils/splitText';
+import { mergeSearxngSearchOptions } from '../../../searchOptions';
 
 export const executeSearch = async (input: {
   queries: string[];
   mode: SearchAgentConfig['mode'];
   realtimeSearch?: boolean;
   searchConfig?: SearxngSearchOptions;
+  configuredSearchOptions?: SearxngSearchOptions;
   researchBlock: ResearchBlock;
   session: InstanceType<typeof SessionManager>;
   llm: BaseLLM<any>;
@@ -42,10 +44,14 @@ export const executeSearch = async (input: {
     const results: Chunk[] = [];
 
     const search = async (q: string) => {
-      const res = await searchSearxng(q, {
-        ...(input.searchConfig ? input.searchConfig : {}),
-        ...(input.realtimeSearch ? { time_range: 'day' as const } : {}),
-      });
+      const res = await searchSearxng(
+        q,
+        mergeSearxngSearchOptions(
+          input.configuredSearchOptions,
+          input.searchConfig,
+          input.realtimeSearch,
+        ),
+      );
 
       let resultChunks: Chunk[] = [];
 
@@ -178,10 +184,14 @@ export const executeSearch = async (input: {
     const searchResults: Chunk[] = [];
 
     const search = async (q: string) => {
-      const res = await searchSearxng(q, {
-        ...(input.searchConfig ? input.searchConfig : {}),
-        ...(input.realtimeSearch ? { time_range: 'day' as const } : {}),
-      });
+      const res = await searchSearxng(
+        q,
+        mergeSearxngSearchOptions(
+          input.configuredSearchOptions,
+          input.searchConfig,
+          input.realtimeSearch,
+        ),
+      );
 
       let resultChunks: Chunk[] = [];
 

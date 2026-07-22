@@ -176,6 +176,7 @@ class Researcher {
         fileIds: input.config.fileIds,
         mode: input.config.mode,
         realtimeSearch: input.config.realtimeSearch,
+        searchOptions: input.config.searchOptions,
       });
 
       actionOutput.push(...actionResults);

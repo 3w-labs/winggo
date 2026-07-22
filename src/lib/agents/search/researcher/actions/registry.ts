@@ -72,6 +72,7 @@ class ActionRegistry {
       fileIds: string[];
       mode: SearchAgentConfig['mode'];
       realtimeSearch: boolean;
+      searchOptions?: SearchAgentConfig['searchOptions'];
     },
   ) {
     const action = this.actions.get(name);
@@ -90,6 +91,7 @@ class ActionRegistry {
       fileIds: string[];
       mode: SearchAgentConfig['mode'];
       realtimeSearch: boolean;
+      searchOptions?: SearchAgentConfig['searchOptions'];
     },
   ): Promise<ActionOutput[]> {
     const results: ActionOutput[] = [];
