@@ -139,3 +139,18 @@ export const formatCompatSearchResponse = (
     elapsedMs: input.elapsedMs,
   },
 });
+
+export const getModeTimeout = (mode: OptimizationMode): number => {
+  if (mode === 'speed') return 45_000;
+  if (mode === 'balanced') return 90_000;
+  return 180_000;
+};
+
+export const buildCompatSystemInstructions = (
+  language?: string,
+  existing = '',
+): string => {
+  const instructions = existing.trim();
+  if (language?.toLowerCase() !== 'ko') return instructions;
+  return [instructions, 'Respond in Korean.'].filter(Boolean).join('\n');
+};
