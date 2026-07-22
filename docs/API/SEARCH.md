@@ -4,6 +4,9 @@
 
 Vane's Search API makes it easy to use our AI-powered search engine. You can run different types of searches, pick the models you want to use, and get the most recent info. Follow the following headings to learn more about Vane's search API.
 
+For deployments that must preserve a SearXNG-compatible `GET /search`
+interface, see [SearXNG-Compatible AI Search](./SEARXNG_COMPAT.md).
+
 ## Endpoints
 
 ### Get Available Providers and Models
