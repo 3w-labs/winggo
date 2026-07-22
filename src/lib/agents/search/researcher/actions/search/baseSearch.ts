@@ -9,6 +9,7 @@ import z from 'zod';
 import Scraper from '@/lib/scraper';
 import { splitText } from '@/lib/utils/splitText';
 import { mergeSearxngSearchOptions } from '../../../searchOptions';
+import { throwIfSearchAborted } from '../../../abort';
 
 export const executeSearch = async (input: {
   queries: string[];
@@ -16,12 +17,14 @@ export const executeSearch = async (input: {
   realtimeSearch?: boolean;
   searchConfig?: SearxngSearchOptions;
   configuredSearchOptions?: SearxngSearchOptions;
+  signal?: AbortSignal;
   researchBlock: ResearchBlock;
   session: InstanceType<typeof SessionManager>;
   llm: BaseLLM<any>;
   embedding: BaseEmbedding<any>;
 }) => {
   const researchBlock = input.researchBlock;
+  throwIfSearchAborted(input.signal);
 
   researchBlock.data.subSteps.push({
     id: crypto.randomUUID(),
@@ -51,7 +54,9 @@ export const executeSearch = async (input: {
           input.searchConfig,
           input.realtimeSearch,
         ),
+        input.signal,
       );
+      throwIfSearchAborted(input.signal);
 
       let resultChunks: Chunk[] = [];
 
@@ -191,7 +196,9 @@ export const executeSearch = async (input: {
           input.searchConfig,
           input.realtimeSearch,
         ),
+        input.signal,
       );
+      throwIfSearchAborted(input.signal);
 
       let resultChunks: Chunk[] = [];
 
@@ -282,6 +289,7 @@ export const executeSearch = async (input: {
         ),
     });
 
+    throwIfSearchAborted(input.signal);
     const pickerResponse = await input.llm.generateObject<typeof pickerSchema>({
       schema: pickerSchema,
       messages: [
@@ -294,6 +302,7 @@ export const executeSearch = async (input: {
           content: `<queries>${input.queries.join(', ')}</queries>\n<search_results>${searchResults.map((result, index) => `<result indice=${index}>${JSON.stringify(result)}</result>`).join('\n')}</search_results>`,
         },
       ],
+      signal: input.signal,
     });
 
     const pickedIndices = pickerResponse.picked_indices.slice(0, 3);
@@ -378,7 +387,11 @@ export const executeSearch = async (input: {
     await Promise.all(
       filteredResults.map(async (result, i) => {
         try {
-          const scrapedData = await Scraper.scrape(result.metadata.url).catch(
+          throwIfSearchAborted(input.signal);
+          const scrapedData = await Scraper.scrape(
+            result.metadata.url,
+            input.signal,
+          ).catch(
             (err) => {
               console.log('Error scraping data from', result.metadata.url, err);
             },
@@ -406,6 +419,7 @@ export const executeSearch = async (input: {
                       content: `<queries>${input.queries.join(', ')}</queries>\n<scraped_data>${chunk}</scraped_data>`,
                     },
                   ],
+                  signal: input.signal,
                 });
 
                 accumulatedContent += extractorOutput.extracted_facts + '\n';

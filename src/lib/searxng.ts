@@ -1,4 +1,6 @@
 import { getSearxngURL } from './config/serverRegistry';
+import { combineAbortSignals } from './agents/search/abort';
+import { SearxngUnavailableError } from './searxngError';
 
 export interface SearxngSearchOptions {
   categories?: string[];
@@ -22,6 +24,7 @@ interface SearxngSearchResult {
 export const searchSearxng = async (
   query: string,
   opts?: SearxngSearchOptions,
+  signal?: AbortSignal,
 ) => {
   const searxngURL = getSearxngURL();
 
@@ -39,16 +42,18 @@ export const searchSearxng = async (
     });
   }
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  const timeoutSignal = AbortSignal.timeout(10_000);
+  const requestSignal = combineAbortSignals(signal, timeoutSignal);
 
   try {
     const res = await fetch(url, {
-      signal: controller.signal,
+      signal: requestSignal,
     });
 
     if (!res.ok) {
-      throw new Error(`SearXNG error: ${res.statusText}`);
+      throw new SearxngUnavailableError(
+        `SearXNG returned ${res.status}: ${res.statusText}`,
+      );
     }
 
     const data = await res.json();
@@ -57,12 +62,9 @@ export const searchSearxng = async (
     const suggestions: string[] = data.suggestions;
 
     return { results, suggestions };
-  } catch (err: any) {
-    if (err.name === 'AbortError') {
-      throw new Error('SearXNG search timed out');
-    }
-    throw err;
-  } finally {
-    clearTimeout(timeoutId);
+  } catch (error) {
+    if (signal?.aborted) throw signal.reason;
+    if (error instanceof SearxngUnavailableError) throw error;
+    throw new SearxngUnavailableError('SearXNG request failed', error);
   }
 };

@@ -47,6 +47,7 @@ export const classify = async (input: ClassifierInput) => {
       },
     ],
     schema,
+    signal: input.signal,
   });
 
   return output;

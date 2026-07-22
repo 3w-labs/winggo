@@ -46,6 +46,7 @@ const academicSearchAction: ResearchAction<typeof schema> = {
       mode: additionalConfig.mode,
       realtimeSearch: additionalConfig.realtimeSearch,
       configuredSearchOptions: additionalConfig.searchOptions,
+      signal: additionalConfig.signal,
       queries: input.queries,
       researchBlock: researchBlock,
       session: additionalConfig.session,

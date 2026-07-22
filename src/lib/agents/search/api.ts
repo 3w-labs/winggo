@@ -4,14 +4,17 @@ import { classify } from './classifier';
 import Researcher from './researcher';
 import { getWriterPrompt } from '@/lib/prompts/search/writer';
 import { WidgetExecutor } from './widgets';
+import { throwIfSearchAborted } from './abort';
 
 class APISearchAgent {
   async searchAsync(session: SessionManager, input: SearchAgentInput) {
+    throwIfSearchAborted(input.signal);
     const classification = await classify({
       chatHistory: input.chatHistory,
       enabledSources: input.config.sources,
       query: input.followUp,
       llm: input.config.llm,
+      signal: input.signal,
     });
 
     const widgetPromise = WidgetExecutor.executeAll({
@@ -33,6 +36,7 @@ class APISearchAgent {
         followUp: input.followUp,
         classification: classification,
         config: input.config,
+        signal: input.signal,
       });
     }
 
@@ -40,6 +44,7 @@ class APISearchAgent {
       widgetPromise,
       searchPromise,
     ]);
+    throwIfSearchAborted(input.signal);
 
     if (searchResults) {
       session.emit('data', {
@@ -86,15 +91,18 @@ class APISearchAgent {
           content: input.followUp,
         },
       ],
+      signal: input.signal,
     });
 
     for await (const chunk of answerStream) {
+      throwIfSearchAborted(input.signal);
       session.emit('data', {
         type: 'response',
         data: chunk.contentChunk,
       });
     }
 
+    throwIfSearchAborted(input.signal);
     session.emit('end', {});
   }
 }

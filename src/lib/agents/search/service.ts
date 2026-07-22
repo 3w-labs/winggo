@@ -97,6 +97,7 @@ export const runApiSearch = async (
           systemInstructions: input.config.systemInstructions,
           searchOptions: input.config.searchOptions,
         },
+        signal,
       })
       .catch(fail);
   });

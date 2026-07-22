@@ -48,7 +48,9 @@ class Scraper {
 
   static async scrape(
     url: string,
+    signal?: AbortSignal,
   ): Promise<{ content: string; title: string }> {
+    signal?.throwIfAborted();
     await this.initBrowser();
 
     if (!this.browser) throw new Error('Browser not initialized');
@@ -63,6 +65,10 @@ class Scraper {
     });
 
     const page = await context.newPage();
+    const onAbort = () => {
+      void page.close().catch(() => undefined);
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
 
     this.userCount++;
 
@@ -71,6 +77,7 @@ class Scraper {
         waitUntil: 'domcontentloaded',
         timeout: this.NAVIGATION_TIMEOUT,
       });
+      signal?.throwIfAborted();
 
       await page
         .waitForLoadState('load', { timeout: 5000 })
@@ -102,6 +109,7 @@ class Scraper {
         content: `# ${url}\n\nError scraping content.`,
       };
     } finally {
+      signal?.removeEventListener('abort', onAbort);
       this.userCount--;
 
       await context.close().catch(() => undefined);

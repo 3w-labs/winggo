@@ -73,6 +73,7 @@ class ActionRegistry {
       mode: SearchAgentConfig['mode'];
       realtimeSearch: boolean;
       searchOptions?: SearchAgentConfig['searchOptions'];
+      signal?: AbortSignal;
     },
   ) {
     const action = this.actions.get(name);
@@ -92,6 +93,7 @@ class ActionRegistry {
       mode: SearchAgentConfig['mode'];
       realtimeSearch: boolean;
       searchOptions?: SearchAgentConfig['searchOptions'];
+      signal?: AbortSignal;
     },
   ): Promise<ActionOutput[]> {
     const results: ActionOutput[] = [];

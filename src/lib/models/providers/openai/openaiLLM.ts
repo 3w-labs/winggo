@@ -98,7 +98,7 @@ class OpenAILLM extends BaseLLM<OpenAIConfig> {
         this.config.options?.frequencyPenalty,
       presence_penalty:
         input.options?.presencePenalty ?? this.config.options?.presencePenalty,
-    });
+    }, { signal: input.signal });
 
     if (response.choices && response.choices.length > 0) {
       return {
@@ -156,7 +156,7 @@ class OpenAILLM extends BaseLLM<OpenAIConfig> {
       presence_penalty:
         input.options?.presencePenalty ?? this.config.options?.presencePenalty,
       stream: true,
-    });
+    }, { signal: input.signal });
 
     let recievedToolCalls: { name: string; id: string; arguments: string }[] =
       [];
@@ -210,7 +210,7 @@ class OpenAILLM extends BaseLLM<OpenAIConfig> {
       presence_penalty:
         input.options?.presencePenalty ?? this.config.options?.presencePenalty,
       response_format: zodResponseFormat(input.schema, 'object'),
-    });
+    }, { signal: input.signal });
 
     if (response.choices && response.choices.length > 0) {
       try {

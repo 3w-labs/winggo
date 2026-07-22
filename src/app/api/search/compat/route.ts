@@ -11,6 +11,8 @@ import {
   ModelNotConfiguredError,
 } from '@/lib/models/defaultModels';
 import ModelRegistry from '@/lib/models/registry';
+import { SearxngUnavailableError } from '@/lib/searxngError';
+import { combineAbortSignals } from '@/lib/agents/search/abort';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -37,7 +39,7 @@ export const GET = async (req: Request) => {
     const timeoutSignal = AbortSignal.timeout(
       getModeTimeout(parsed.optimizationMode),
     );
-    const signal = AbortSignal.any([req.signal, timeoutSignal]);
+    const signal = combineAbortSignals(req.signal, timeoutSignal);
     const result = await runApiSearch(
       {
         query: parsed.query,
@@ -89,6 +91,15 @@ export const GET = async (req: Request) => {
         504,
         'search_timeout',
         'AI search timed out.',
+        requestId,
+      );
+    }
+    if (error instanceof SearxngUnavailableError) {
+      console.error(`[${requestId}] SearXNG unavailable`, error.cause);
+      return errorResponse(
+        502,
+        'searxng_unavailable',
+        'SearXNG is unavailable.',
         requestId,
       );
     }

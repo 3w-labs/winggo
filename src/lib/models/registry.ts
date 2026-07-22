@@ -4,6 +4,7 @@ import { getConfiguredModelProviders } from '../config/serverRegistry';
 import { providers } from './providers';
 import { MinimalProvider, ModelList } from './types';
 import configManager from '../config';
+import { resolveInConfiguredOrder } from './providerOrder';
 
 class ModelRegistry {
   activeProviders: (ConfigModelProvider & {
@@ -35,10 +36,8 @@ class ModelRegistry {
   }
 
   async getActiveProviders() {
-    const providers: MinimalProvider[] = [];
-
-    await Promise.all(
-      this.activeProviders.map(async (p) => {
+    return resolveInConfiguredOrder(
+      this.activeProviders.map((p) => async (): Promise<MinimalProvider> => {
         let m: ModelList = { chat: [], embedding: [] };
 
         try {
@@ -59,16 +58,14 @@ class ModelRegistry {
           };
         }
 
-        providers.push({
+        return {
           id: p.id,
           name: p.name,
           chatModels: m.chat,
           embeddingModels: m.embedding,
-        });
+        };
       }),
     );
-
-    return providers;
   }
 
   async loadChatModel(providerId: string, modelName: string) {

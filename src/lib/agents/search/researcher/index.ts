@@ -4,6 +4,7 @@ import { getResearcherPrompt } from '@/lib/prompts/search/researcher';
 import SessionManager from '@/lib/session';
 import { Message, ReasoningResearchBlock } from '@/lib/types';
 import formatChatHistoryAsString from '@/lib/utils/formatHistory';
+import { throwIfSearchAborted } from '../abort';
 import { ToolCall } from '@/lib/models/types';
 
 class Researcher {
@@ -11,6 +12,7 @@ class Researcher {
     session: SessionManager,
     input: ResearcherInput,
   ): Promise<ResearcherOutput> {
+    throwIfSearchAborted(input.signal);
     let actionOutput: ActionOutput[] = [];
     let maxIteration =
       input.config.mode === 'speed'
@@ -64,6 +66,7 @@ class Researcher {
     ];
 
     for (let i = 0; i < maxIteration; i++) {
+      throwIfSearchAborted(input.signal);
       const researcherPrompt = getResearcherPrompt(
         availableActionsDescription,
         input.config.mode,
@@ -81,6 +84,7 @@ class Researcher {
           ...agentMessageHistory,
         ],
         tools: availableTools,
+        signal: input.signal,
       });
 
       const block = session.getBlock(researchBlockId);
@@ -91,6 +95,7 @@ class Researcher {
       let finalToolCalls: ToolCall[] = [];
 
       for await (const partialRes of actionStream) {
+        throwIfSearchAborted(input.signal);
         if (partialRes.toolCallChunk.length > 0) {
           partialRes.toolCallChunk.forEach((tc) => {
             if (
@@ -177,6 +182,7 @@ class Researcher {
         mode: input.config.mode,
         realtimeSearch: input.config.realtimeSearch,
         searchOptions: input.config.searchOptions,
+        signal: input.signal,
       });
 
       actionOutput.push(...actionResults);

@@ -72,7 +72,7 @@ consistent 400 response for invalid modes.
 	handle @ai_search {
 		# Rewriting only the path retains the original query string.
 		rewrite * /api/search/compat
-		reverse_proxy winggo:3000 {
+		reverse_proxy winggo-app:3000 {
 			transport http {
 				response_header_timeout 190s
 				dial_timeout 5s
@@ -86,16 +86,18 @@ consistent 400 response for invalid modes.
 		path /search
 	}
 	handle @searxng_search {
-		reverse_proxy winggo:8080
+		reverse_proxy searxng:8080
 	}
 
 	respond "unauthorized" 401
 }
 ```
 
-Replace `winggo` with the deployment's actual container DNS name. Requests
-without `optimizationMode` retain the original path, query string, SearXNG
-response body, and status code.
+Replace `winggo-app` and `searxng` with the deployment's actual application
+and search-engine container DNS names. A combined Winggo image may use the
+same container name with ports 3000 and 8080. Requests without
+`optimizationMode` retain the original path, query string, SearXNG response
+body, and status code.
 
 ## Examples
 

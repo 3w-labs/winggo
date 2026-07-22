@@ -24,6 +24,7 @@ export type SearchAgentInput = {
   config: SearchAgentConfig;
   chatId: string;
   messageId: string;
+  signal?: AbortSignal;
 };
 
 export type WidgetInput = {
@@ -50,6 +51,7 @@ export type ClassifierInput = {
   enabledSources: SearchSources[];
   query: string;
   chatHistory: ChatTurnMessage[];
+  signal?: AbortSignal;
 };
 
 export type ClassifierOutput = {
@@ -76,6 +78,7 @@ export type ResearcherInput = {
   followUp: string;
   classification: ClassifierOutput;
   config: SearchAgentConfig;
+  signal?: AbortSignal;
 };
 
 export type ResearcherOutput = {
@@ -124,6 +127,7 @@ export interface ResearchAction<
       mode: SearchAgentConfig['mode'];
       realtimeSearch: boolean;
       searchOptions?: SearxngSearchOptions;
+      signal?: AbortSignal;
     },
   ) => Promise<ActionOutput>;
 }
