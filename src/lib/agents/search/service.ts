@@ -30,14 +30,21 @@ export const runApiSearch = async (
   input: ApiSearchServiceInput,
   signal?: AbortSignal,
 ): Promise<ApiSearchServiceResult> => {
+  signal?.throwIfAborted();
   const registry = new ModelRegistry();
   const [llm, embedding] = await Promise.all([
-    registry.loadChatModel(input.chatModel.providerId, input.chatModel.key),
+    registry.loadChatModel(
+      input.chatModel.providerId,
+      input.chatModel.key,
+      signal,
+    ),
     registry.loadEmbeddingModel(
       input.embeddingModel.providerId,
       input.embeddingModel.key,
+      signal,
     ),
   ]);
+  signal?.throwIfAborted();
   const chatHistory: ChatTurnMessage[] = input.history.map(([role, content]) =>
     role === 'human'
       ? { role: 'user', content }

@@ -35,13 +35,13 @@ class ModelRegistry {
     });
   }
 
-  async getActiveProviders() {
+  async getActiveProviders(signal?: AbortSignal) {
     return resolveInConfiguredOrder(
       this.activeProviders.map((p) => async (): Promise<MinimalProvider> => {
         let m: ModelList = { chat: [], embedding: [] };
 
         try {
-          m = await p.provider.getModelList();
+          m = await p.provider.getModelList(signal);
         } catch (err: any) {
           console.error(
             `Failed to get model list. Type: ${p.type}, ID: ${p.id}, Error: ${err.message}`,
@@ -68,22 +68,30 @@ class ModelRegistry {
     );
   }
 
-  async loadChatModel(providerId: string, modelName: string) {
+  async loadChatModel(
+    providerId: string,
+    modelName: string,
+    signal?: AbortSignal,
+  ) {
     const provider = this.activeProviders.find((p) => p.id === providerId);
 
     if (!provider) throw new Error('Invalid provider id');
 
-    const model = await provider.provider.loadChatModel(modelName);
+    const model = await provider.provider.loadChatModel(modelName, signal);
 
     return model;
   }
 
-  async loadEmbeddingModel(providerId: string, modelName: string) {
+  async loadEmbeddingModel(
+    providerId: string,
+    modelName: string,
+    signal?: AbortSignal,
+  ) {
     const provider = this.activeProviders.find((p) => p.id === providerId);
 
     if (!provider) throw new Error('Invalid provider id');
 
-    const model = await provider.provider.loadEmbeddingModel(modelName);
+    const model = await provider.provider.loadEmbeddingModel(modelName, signal);
 
     return model;
   }

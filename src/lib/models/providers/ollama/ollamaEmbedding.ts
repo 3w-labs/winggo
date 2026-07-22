@@ -24,8 +24,8 @@ class OllamaEmbedding extends BaseEmbedding<OllamaConfig> {
     try {
       signal?.throwIfAborted();
       const response = await this.ollamaClient.embed({
-      input: texts,
-      model: this.config.model,
+        input: texts,
+        model: this.config.model,
       });
       return response.embeddings;
     } finally {
@@ -33,7 +33,10 @@ class OllamaEmbedding extends BaseEmbedding<OllamaConfig> {
     }
   }
 
-  async embedChunks(chunks: Chunk[], signal?: AbortSignal): Promise<number[][]> {
+  async embedChunks(
+    chunks: Chunk[],
+    signal?: AbortSignal,
+  ): Promise<number[][]> {
     return this.embedText(
       chunks.map((chunk) => chunk.content),
       signal,

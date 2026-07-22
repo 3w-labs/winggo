@@ -30,7 +30,7 @@ type SearchInput = {
 };
 
 type HandlerDependencies = {
-  getModels: () => Promise<Models>;
+  getModels: (signal: AbortSignal) => Promise<Models>;
   runSearch: (
     input: SearchInput,
     signal: AbortSignal,
@@ -48,27 +48,23 @@ const errorResponse = (
   message: string,
   requestId: string,
 ) =>
-  Response.json(
-    { error: { code, message }, meta: { requestId } },
-    { status },
-  );
+  Response.json({ error: { code, message }, meta: { requestId } }, { status });
 
 export const handleCompatSearch = async (
   req: Request,
   dependencies: HandlerDependencies,
 ): Promise<Response> => {
-  const requestId =
-    dependencies.createRequestId?.() ?? crypto.randomUUID();
+  const requestId = dependencies.createRequestId?.() ?? crypto.randomUUID();
   const now = dependencies.now ?? Date.now;
   const startedAt = now();
 
   try {
     const parsed = parseCompatSearchRequest(req.url);
-    const models = await dependencies.getModels();
     const signal = combineAbortSignals(
       req.signal,
       AbortSignal.timeout(getModeTimeout(parsed.optimizationMode)),
     );
+    const models = await dependencies.getModels(signal);
     const result = await dependencies.runSearch(
       {
         query: parsed.query,

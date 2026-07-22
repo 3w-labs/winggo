@@ -17,7 +17,10 @@ class TransformerEmbedding extends BaseEmbedding<TransformerConfig> {
     return this.embed(texts, signal);
   }
 
-  async embedChunks(chunks: Chunk[], signal?: AbortSignal): Promise<number[][]> {
+  async embedChunks(
+    chunks: Chunk[],
+    signal?: AbortSignal,
+  ): Promise<number[][]> {
     return this.embed(
       chunks.map((c) => c.content),
       signal,

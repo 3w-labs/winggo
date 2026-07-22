@@ -9,10 +9,16 @@ abstract class BaseModelProvider<CONFIG> {
     protected name: string,
     protected config: CONFIG,
   ) {}
-  abstract getDefaultModels(): Promise<ModelList>;
-  abstract getModelList(): Promise<ModelList>;
-  abstract loadChatModel(modelName: string): Promise<BaseLLM<any>>;
-  abstract loadEmbeddingModel(modelName: string): Promise<BaseEmbedding<any>>;
+  abstract getDefaultModels(signal?: AbortSignal): Promise<ModelList>;
+  abstract getModelList(signal?: AbortSignal): Promise<ModelList>;
+  abstract loadChatModel(
+    modelName: string,
+    signal?: AbortSignal,
+  ): Promise<BaseLLM<any>>;
+  abstract loadEmbeddingModel(
+    modelName: string,
+    signal?: AbortSignal,
+  ): Promise<BaseEmbedding<any>>;
   static getProviderConfigFields(): UIConfigField[] {
     throw new Error('Method not implemented.');
   }

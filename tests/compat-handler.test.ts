@@ -39,6 +39,41 @@ test('returns the extended response and forwards the request signal', async () =
   });
 });
 
+test('aborting the original request aborts the search-service signal', async () => {
+  const controller = new AbortController();
+  const req = new Request(
+    'http://localhost/search?q=winggo&optimizationMode=quality',
+    { signal: controller.signal },
+  );
+  let receivedSignal: AbortSignal | undefined;
+  let markSearchStarted!: () => void;
+  const searchStarted = new Promise<void>((resolve) => {
+    markSearchStarted = resolve;
+  });
+
+  const responsePromise = handleCompatSearch(req, {
+    getModels: async () => models,
+    runSearch: async (_input, signal) => {
+      receivedSignal = signal;
+      markSearchStarted();
+      return new Promise((_resolve, reject) => {
+        signal.addEventListener('abort', () => reject(signal.reason), {
+          once: true,
+        });
+      });
+    },
+    createRequestId: () => 'aborted-request',
+  });
+
+  await searchStarted;
+  controller.abort(new DOMException('Client disconnected', 'AbortError'));
+  const response = await responsePromise;
+
+  assert.equal(receivedSignal?.aborted, true);
+  assert.equal((receivedSignal?.reason as DOMException).name, 'AbortError');
+  assert.equal(response.status, 502);
+});
+
 test('maps model and SearXNG failures to stable error responses', async () => {
   const modelResponse = await handleCompatSearch(request(), {
     getModels: async () => {

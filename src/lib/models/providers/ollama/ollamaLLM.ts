@@ -41,6 +41,20 @@ class OllamaLLM extends BaseLLM<OllamaConfig> {
     });
   }
 
+  private async withAbort<T>(
+    signal: AbortSignal | undefined,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    const onAbort = () => this.ollamaClient.abort();
+    signal?.throwIfAborted();
+    signal?.addEventListener('abort', onAbort, { once: true });
+    try {
+      return await operation();
+    } finally {
+      signal?.removeEventListener('abort', onAbort);
+    }
+  }
+
   convertToOllamaMessages(messages: Message[]): OllamaMessage[] {
     return messages.map((msg) => {
       if (msg.role === 'tool') {
@@ -82,29 +96,34 @@ class OllamaLLM extends BaseLLM<OllamaConfig> {
       });
     });
 
-    const res = await this.ollamaClient.chat({
-      model: this.config.model,
-      messages: this.convertToOllamaMessages(input.messages),
-      tools: ollamaTools.length > 0 ? ollamaTools : undefined,
-      ...(reasoningModels.find((m) => this.config.model.includes(m))
-        ? { think: false }
-        : {}),
-      options: {
-        top_p: input.options?.topP ?? this.config.options?.topP,
-        temperature:
-          input.options?.temperature ?? this.config.options?.temperature ?? 0.7,
-        num_predict: input.options?.maxTokens ?? this.config.options?.maxTokens,
-        num_ctx: 32000,
-        frequency_penalty:
-          input.options?.frequencyPenalty ??
-          this.config.options?.frequencyPenalty,
-        presence_penalty:
-          input.options?.presencePenalty ??
-          this.config.options?.presencePenalty,
-        stop:
-          input.options?.stopSequences ?? this.config.options?.stopSequences,
-      },
-    });
+    const res = await this.withAbort(input.signal, () =>
+      this.ollamaClient.chat({
+        model: this.config.model,
+        messages: this.convertToOllamaMessages(input.messages),
+        tools: ollamaTools.length > 0 ? ollamaTools : undefined,
+        ...(reasoningModels.find((m) => this.config.model.includes(m))
+          ? { think: false }
+          : {}),
+        options: {
+          top_p: input.options?.topP ?? this.config.options?.topP,
+          temperature:
+            input.options?.temperature ??
+            this.config.options?.temperature ??
+            0.7,
+          num_predict:
+            input.options?.maxTokens ?? this.config.options?.maxTokens,
+          num_ctx: 32000,
+          frequency_penalty:
+            input.options?.frequencyPenalty ??
+            this.config.options?.frequencyPenalty,
+          presence_penalty:
+            input.options?.presencePenalty ??
+            this.config.options?.presencePenalty,
+          stop:
+            input.options?.stopSequences ?? this.config.options?.stopSequences,
+        },
+      }),
+    );
 
     return {
       content: res.message.content,
@@ -136,76 +155,92 @@ class OllamaLLM extends BaseLLM<OllamaConfig> {
       });
     });
 
-    const stream = await this.ollamaClient.chat({
-      model: this.config.model,
-      messages: this.convertToOllamaMessages(input.messages),
-      stream: true,
-      ...(reasoningModels.find((m) => this.config.model.includes(m))
-        ? { think: false }
-        : {}),
-      tools: ollamaTools.length > 0 ? ollamaTools : undefined,
-      options: {
-        top_p: input.options?.topP ?? this.config.options?.topP,
-        temperature:
-          input.options?.temperature ?? this.config.options?.temperature ?? 0.7,
-        num_ctx: 32000,
-        num_predict: input.options?.maxTokens ?? this.config.options?.maxTokens,
-        frequency_penalty:
-          input.options?.frequencyPenalty ??
-          this.config.options?.frequencyPenalty,
-        presence_penalty:
-          input.options?.presencePenalty ??
-          this.config.options?.presencePenalty,
-        stop:
-          input.options?.stopSequences ?? this.config.options?.stopSequences,
-      },
-    });
-
-    for await (const chunk of stream) {
-      yield {
-        contentChunk: chunk.message.content,
-        toolCallChunk:
-          chunk.message.tool_calls?.map((tc, i) => ({
-            id: crypto
-              .createHash('sha256')
-              .update(
-                `${i}-${tc.function.name}`,
-              ) /* Ollama currently doesn't return a tool call ID so we're creating one based on the index and tool call name */
-              .digest('hex'),
-            name: tc.function.name,
-            arguments: tc.function.arguments,
-          })) || [],
-        done: chunk.done,
-        additionalInfo: {
-          reasoning: chunk.message.thinking,
+    const onAbort = () => this.ollamaClient.abort();
+    input.signal?.throwIfAborted();
+    input.signal?.addEventListener('abort', onAbort, { once: true });
+    try {
+      const stream = await this.ollamaClient.chat({
+        model: this.config.model,
+        messages: this.convertToOllamaMessages(input.messages),
+        stream: true,
+        ...(reasoningModels.find((m) => this.config.model.includes(m))
+          ? { think: false }
+          : {}),
+        tools: ollamaTools.length > 0 ? ollamaTools : undefined,
+        options: {
+          top_p: input.options?.topP ?? this.config.options?.topP,
+          temperature:
+            input.options?.temperature ??
+            this.config.options?.temperature ??
+            0.7,
+          num_ctx: 32000,
+          num_predict:
+            input.options?.maxTokens ?? this.config.options?.maxTokens,
+          frequency_penalty:
+            input.options?.frequencyPenalty ??
+            this.config.options?.frequencyPenalty,
+          presence_penalty:
+            input.options?.presencePenalty ??
+            this.config.options?.presencePenalty,
+          stop:
+            input.options?.stopSequences ?? this.config.options?.stopSequences,
         },
-      };
+      });
+
+      for await (const chunk of stream) {
+        input.signal?.throwIfAborted();
+        yield {
+          contentChunk: chunk.message.content,
+          toolCallChunk:
+            chunk.message.tool_calls?.map((tc, i) => ({
+              id: crypto
+                .createHash('sha256')
+                .update(
+                  `${i}-${tc.function.name}`,
+                ) /* Ollama currently doesn't return a tool call ID so we're creating one based on the index and tool call name */
+                .digest('hex'),
+              name: tc.function.name,
+              arguments: tc.function.arguments,
+            })) || [],
+          done: chunk.done,
+          additionalInfo: {
+            reasoning: chunk.message.thinking,
+          },
+        };
+      }
+    } finally {
+      input.signal?.removeEventListener('abort', onAbort);
     }
   }
 
   async generateObject<T>(input: GenerateObjectInput): Promise<T> {
-    const response = await this.ollamaClient.chat({
-      model: this.config.model,
-      messages: this.convertToOllamaMessages(input.messages),
-      format: z.toJSONSchema(input.schema),
-      ...(reasoningModels.find((m) => this.config.model.includes(m))
-        ? { think: false }
-        : {}),
-      options: {
-        top_p: input.options?.topP ?? this.config.options?.topP,
-        temperature:
-          input.options?.temperature ?? this.config.options?.temperature ?? 0.7,
-        num_predict: input.options?.maxTokens ?? this.config.options?.maxTokens,
-        frequency_penalty:
-          input.options?.frequencyPenalty ??
-          this.config.options?.frequencyPenalty,
-        presence_penalty:
-          input.options?.presencePenalty ??
-          this.config.options?.presencePenalty,
-        stop:
-          input.options?.stopSequences ?? this.config.options?.stopSequences,
-      },
-    });
+    const response = await this.withAbort(input.signal, () =>
+      this.ollamaClient.chat({
+        model: this.config.model,
+        messages: this.convertToOllamaMessages(input.messages),
+        format: z.toJSONSchema(input.schema),
+        ...(reasoningModels.find((m) => this.config.model.includes(m))
+          ? { think: false }
+          : {}),
+        options: {
+          top_p: input.options?.topP ?? this.config.options?.topP,
+          temperature:
+            input.options?.temperature ??
+            this.config.options?.temperature ??
+            0.7,
+          num_predict:
+            input.options?.maxTokens ?? this.config.options?.maxTokens,
+          frequency_penalty:
+            input.options?.frequencyPenalty ??
+            this.config.options?.frequencyPenalty,
+          presence_penalty:
+            input.options?.presencePenalty ??
+            this.config.options?.presencePenalty,
+          stop:
+            input.options?.stopSequences ?? this.config.options?.stopSequences,
+        },
+      }),
+    );
 
     try {
       return input.schema.parse(
@@ -223,39 +258,50 @@ class OllamaLLM extends BaseLLM<OllamaConfig> {
   async *streamObject<T>(input: GenerateObjectInput): AsyncGenerator<T> {
     let recievedObj: string = '';
 
-    const stream = await this.ollamaClient.chat({
-      model: this.config.model,
-      messages: this.convertToOllamaMessages(input.messages),
-      format: z.toJSONSchema(input.schema),
-      stream: true,
-      ...(reasoningModels.find((m) => this.config.model.includes(m))
-        ? { think: false }
-        : {}),
-      options: {
-        top_p: input.options?.topP ?? this.config.options?.topP,
-        temperature:
-          input.options?.temperature ?? this.config.options?.temperature ?? 0.7,
-        num_predict: input.options?.maxTokens ?? this.config.options?.maxTokens,
-        frequency_penalty:
-          input.options?.frequencyPenalty ??
-          this.config.options?.frequencyPenalty,
-        presence_penalty:
-          input.options?.presencePenalty ??
-          this.config.options?.presencePenalty,
-        stop:
-          input.options?.stopSequences ?? this.config.options?.stopSequences,
-      },
-    });
+    const onAbort = () => this.ollamaClient.abort();
+    input.signal?.throwIfAborted();
+    input.signal?.addEventListener('abort', onAbort, { once: true });
+    try {
+      const stream = await this.ollamaClient.chat({
+        model: this.config.model,
+        messages: this.convertToOllamaMessages(input.messages),
+        format: z.toJSONSchema(input.schema),
+        stream: true,
+        ...(reasoningModels.find((m) => this.config.model.includes(m))
+          ? { think: false }
+          : {}),
+        options: {
+          top_p: input.options?.topP ?? this.config.options?.topP,
+          temperature:
+            input.options?.temperature ??
+            this.config.options?.temperature ??
+            0.7,
+          num_predict:
+            input.options?.maxTokens ?? this.config.options?.maxTokens,
+          frequency_penalty:
+            input.options?.frequencyPenalty ??
+            this.config.options?.frequencyPenalty,
+          presence_penalty:
+            input.options?.presencePenalty ??
+            this.config.options?.presencePenalty,
+          stop:
+            input.options?.stopSequences ?? this.config.options?.stopSequences,
+        },
+      });
 
-    for await (const chunk of stream) {
-      recievedObj += chunk.message.content;
+      for await (const chunk of stream) {
+        input.signal?.throwIfAborted();
+        recievedObj += chunk.message.content;
 
-      try {
-        yield parse(recievedObj) as T;
-      } catch (err) {
-        console.log('Error parsing partial object from Ollama:', err);
-        yield {} as T;
+        try {
+          yield parse(recievedObj) as T;
+        } catch (err) {
+          console.log('Error parsing partial object from Ollama:', err);
+          yield {} as T;
+        }
       }
+    } finally {
+      input.signal?.removeEventListener('abort', onAbort);
     }
   }
 }

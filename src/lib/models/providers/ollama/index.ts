@@ -31,13 +31,14 @@ class OllamaProvider extends BaseModelProvider<OllamaConfig> {
     super(id, name, config);
   }
 
-  async getDefaultModels(): Promise<ModelList> {
+  async getDefaultModels(signal?: AbortSignal): Promise<ModelList> {
     try {
       const res = await fetch(`${this.config.baseURL}/api/tags`, {
         method: 'GET',
         headers: {
           'Content-type': 'application/json',
         },
+        signal,
       });
 
       const data = await res.json();
@@ -64,8 +65,8 @@ class OllamaProvider extends BaseModelProvider<OllamaConfig> {
     }
   }
 
-  async getModelList(): Promise<ModelList> {
-    const defaultModels = await this.getDefaultModels();
+  async getModelList(signal?: AbortSignal): Promise<ModelList> {
+    const defaultModels = await this.getDefaultModels(signal);
     const configProvider = getConfiguredModelProviderById(this.id)!;
 
     return {
@@ -77,8 +78,11 @@ class OllamaProvider extends BaseModelProvider<OllamaConfig> {
     };
   }
 
-  async loadChatModel(key: string): Promise<BaseLLM<any>> {
-    const modelList = await this.getModelList();
+  async loadChatModel(
+    key: string,
+    signal?: AbortSignal,
+  ): Promise<BaseLLM<any>> {
+    const modelList = await this.getModelList(signal);
 
     const exists = modelList.chat.find((m) => m.key === key);
 
@@ -94,8 +98,11 @@ class OllamaProvider extends BaseModelProvider<OllamaConfig> {
     });
   }
 
-  async loadEmbeddingModel(key: string): Promise<BaseEmbedding<any>> {
-    const modelList = await this.getModelList();
+  async loadEmbeddingModel(
+    key: string,
+    signal?: AbortSignal,
+  ): Promise<BaseEmbedding<any>> {
+    const modelList = await this.getModelList(signal);
     const exists = modelList.embedding.find((m) => m.key === key);
 
     if (!exists) {

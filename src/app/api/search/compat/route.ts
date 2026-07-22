@@ -9,7 +9,8 @@ export const dynamic = 'force-dynamic';
 export const GET = (req: Request) => {
   const registry = new ModelRegistry();
   return handleCompatSearch(req, {
-    getModels: () => getDefaultModels(() => registry.getActiveProviders()),
+    getModels: (signal) =>
+      getDefaultModels(() => registry.getActiveProviders(signal)),
     runSearch: runApiSearch,
   });
 };
