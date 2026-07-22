@@ -53,8 +53,11 @@ RUN chown -R searxng:searxng /etc/searxng
 
 USER searxng
 
+ARG SEARXNG_REF=b5ef7ec8f32b7020cc0f887e26f0d01b85949d17
+
 RUN git clone "https://github.com/searxng/searxng" \
-                   "/usr/local/searxng/searxng-src"
+                   "/usr/local/searxng/searxng-src" && \
+    git -C "/usr/local/searxng/searxng-src" checkout "$SEARXNG_REF"
 
 RUN python3 -m venv "/usr/local/searxng/searx-pyenv"
 RUN "/usr/local/searxng/searx-pyenv/bin/pip" install --upgrade pip setuptools wheel pyyaml msgspec typing_extensions
