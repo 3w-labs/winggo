@@ -43,6 +43,10 @@ class ModelRegistry {
         try {
           m = await p.provider.getModelList(signal);
         } catch (err: any) {
+          if (signal?.aborted) {
+            throw signal.reason;
+          }
+
           console.error(
             `Failed to get model list. Type: ${p.type}, ID: ${p.id}, Error: ${err.message}`,
           );

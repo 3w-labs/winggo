@@ -110,3 +110,35 @@ test('maps a search deadline to search_timeout with a request ID', async () => {
     meta: { requestId: 'timeout-request' },
   });
 });
+
+test('maps a deadline during model discovery to search_timeout', async () => {
+  const controller = new AbortController();
+  const req = new Request(
+    'http://localhost/search?q=winggo&optimizationMode=speed',
+    { signal: controller.signal },
+  );
+  let markDiscoveryStarted!: () => void;
+  const discoveryStarted = new Promise<void>((resolve) => {
+    markDiscoveryStarted = resolve;
+  });
+
+  const responsePromise = handleCompatSearch(req, {
+    getModels: async (signal) => {
+      markDiscoveryStarted();
+      return new Promise((_resolve, reject) => {
+        signal.addEventListener('abort', () => reject(signal.reason), {
+          once: true,
+        });
+      });
+    },
+    runSearch: async () => ({ message: '', sources: [] }),
+    createRequestId: () => 'discovery-timeout-request',
+  });
+
+  await discoveryStarted;
+  controller.abort(new DOMException('deadline', 'TimeoutError'));
+
+  const response = await responsePromise;
+  assert.equal(response.status, 504);
+  assert.equal((await response.json()).error.code, 'search_timeout');
+});
