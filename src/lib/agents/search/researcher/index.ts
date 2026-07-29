@@ -182,6 +182,7 @@ class Researcher {
         mode: input.config.mode,
         realtimeSearch: input.config.realtimeSearch,
         searchOptions: input.config.searchOptions,
+        siteScope: input.config.siteScope,
         signal: input.signal,
       });
 

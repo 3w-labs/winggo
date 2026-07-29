@@ -17,6 +17,7 @@ export type ApiSearchServiceInput = {
     | 'mode'
     | 'systemInstructions'
     | 'searchOptions'
+    | 'siteScope'
     | 'widgetsEnabled'
   >;
 };
@@ -104,6 +105,7 @@ export const runApiSearch = async (
           fileIds: [],
           systemInstructions: input.config.systemInstructions,
           searchOptions: input.config.searchOptions,
+          siteScope: input.config.siteScope,
           widgetsEnabled: input.config.widgetsEnabled,
         },
         signal,

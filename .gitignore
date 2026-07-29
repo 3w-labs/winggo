@@ -52,3 +52,7 @@ connection.md
 
 # Local Git worktrees
 .worktrees/
+.squad/
+
+# TypeScript incremental build info
+tsconfig.tsbuildinfo

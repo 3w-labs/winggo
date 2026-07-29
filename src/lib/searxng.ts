@@ -8,7 +8,10 @@ export interface SearxngSearchOptions {
   language?: string;
   pageno?: number;
   time_range?: 'day' | 'month' | 'year';
+  safesearch?: 0 | 1 | 2;
 }
+
+export type SearxngUnresponsiveEngine = [engine: string, reason: string];
 
 interface SearxngSearchResult {
   title: string;
@@ -60,8 +63,12 @@ export const searchSearxng = async (
 
     const results: SearxngSearchResult[] = data.results;
     const suggestions: string[] = data.suggestions;
+    // [name, reason] pairs, e.g. ["google", "Suspended: too many requests"].
+    // Passed through so callers can tell "engine down" from "nothing found".
+    const unresponsiveEngines: SearxngUnresponsiveEngine[] =
+      data.unresponsive_engines ?? [];
 
-    return { results, suggestions };
+    return { results, suggestions, unresponsiveEngines };
   } catch (error) {
     if (signal?.aborted) throw signal.reason;
     if (error instanceof SearxngUnavailableError) throw error;

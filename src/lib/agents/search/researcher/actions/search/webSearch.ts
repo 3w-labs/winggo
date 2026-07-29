@@ -101,6 +101,7 @@ const webSearchAction: ResearchAction<typeof actionSchema> = {
       mode: additionalConfig.mode,
       realtimeSearch: additionalConfig.realtimeSearch,
       configuredSearchOptions: additionalConfig.searchOptions,
+      siteScope: additionalConfig.siteScope,
       signal: additionalConfig.signal,
       queries: input.queries,
       researchBlock: researchBlock,

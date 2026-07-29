@@ -9,6 +9,12 @@ import z from 'zod';
 import Scraper from '@/lib/scraper';
 import { splitText } from '@/lib/utils/splitText';
 import { mergeSearxngSearchOptions } from '../../../searchOptions';
+import {
+  balanceByDomain,
+  buildSiteRequests,
+  filterByDomain,
+  type SiteScope,
+} from '../../../siteScope';
 import { throwIfSearchAborted } from '../../../abort';
 
 export const executeSearch = async (input: {
@@ -17,6 +23,7 @@ export const executeSearch = async (input: {
   realtimeSearch?: boolean;
   searchConfig?: SearxngSearchOptions;
   configuredSearchOptions?: SearxngSearchOptions;
+  siteScope?: SiteScope;
   signal?: AbortSignal;
   researchBlock: ResearchBlock;
   session: InstanceType<typeof SessionManager>;
@@ -25,6 +32,42 @@ export const executeSearch = async (input: {
 }) => {
   const researchBlock = input.researchBlock;
   throwIfSearchAborted(input.signal);
+
+  const sites = input.siteScope?.sites ?? [];
+
+  /**
+   * One agent query becomes one `site:` query per requested site, so the scope
+   * survives the queries the model writes for itself. `site:` is only a hint to
+   * the engine, so the responses are filtered by host as well.
+   */
+  const searxngSearch = async (query: string) => {
+    const options = mergeSearxngSearchOptions(
+      input.configuredSearchOptions,
+      input.searchConfig,
+      input.realtimeSearch,
+    );
+
+    if (sites.length === 0) {
+      const res = await searchSearxng(query, options, input.signal);
+      return res.results;
+    }
+
+    const responses = await Promise.all(
+      buildSiteRequests(query, sites).map((request) =>
+        searchSearxng(
+          request.query,
+          request.engines ? { ...options, engines: request.engines } : options,
+          input.signal,
+        ),
+      ),
+    );
+
+    return filterByDomain(
+      responses.flatMap((res) => res.results),
+      sites,
+      (result) => result.url,
+    );
+  };
 
   researchBlock.data.subSteps.push({
     id: crypto.randomUUID(),
@@ -47,15 +90,7 @@ export const executeSearch = async (input: {
     const results: Chunk[] = [];
 
     const search = async (q: string) => {
-      const res = await searchSearxng(
-        q,
-        mergeSearxngSearchOptions(
-          input.configuredSearchOptions,
-          input.searchConfig,
-          input.realtimeSearch,
-        ),
-        input.signal,
-      );
+      const searchResults = await searxngSearch(q);
       throwIfSearchAborted(input.signal);
 
       let resultChunks: Chunk[] = [];
@@ -67,7 +102,7 @@ export const executeSearch = async (input: {
 
         resultChunks = (
           await Promise.all(
-            res.results.map(async (r) => {
+            searchResults.map(async (r) => {
               const content = r.content || r.title;
               const chunkEmbedding = (
                 await input.embedding.embedText([content], input.signal)
@@ -87,7 +122,7 @@ export const executeSearch = async (input: {
         ).filter((c) => c.metadata.similarity > 0.5);
       } catch (err) {
         throwIfSearchAborted(input.signal);
-        resultChunks = res.results.map((r) => {
+        resultChunks = searchResults.map((r) => {
           const content = r.content || r.title;
 
           return {
@@ -173,18 +208,22 @@ export const executeSearch = async (input: {
       }
     }
 
-    const uniqueSearchResults = Array.from(uniqueSearchResultIndices.keys())
-      .map((i) => {
+    const rankedResults = Array.from(uniqueSearchResultIndices.keys()).map(
+      (i) => {
         const uniqueResult = results[i];
 
         delete uniqueResult.metadata.embedding;
         delete uniqueResult.metadata.similarity;
 
         return uniqueResult;
-      })
-      .slice(0, 20);
+      },
+    );
 
-    return uniqueSearchResults;
+    // The cap stays at 20; scoped searches only change how those 20 slots are
+    // handed out, so one domain cannot crowd out the others.
+    return sites.length > 0
+      ? balanceByDomain(rankedResults, sites, 20, (r) => r.metadata.url)
+      : rankedResults.slice(0, 20);
   } else if (input.mode === 'quality') {
     const searchResultsBlockId = crypto.randomUUID();
     let searchResultsEmitted = false;
@@ -192,20 +231,12 @@ export const executeSearch = async (input: {
     const searchResults: Chunk[] = [];
 
     const search = async (q: string) => {
-      const res = await searchSearxng(
-        q,
-        mergeSearxngSearchOptions(
-          input.configuredSearchOptions,
-          input.searchConfig,
-          input.realtimeSearch,
-        ),
-        input.signal,
-      );
+      const rawResults = await searxngSearch(q);
       throwIfSearchAborted(input.signal);
 
       let resultChunks: Chunk[] = [];
 
-      resultChunks = res.results.map((r) => {
+      resultChunks = rawResults.map((r) => {
         const content = r.content || r.title;
 
         return {
@@ -260,6 +291,18 @@ export const executeSearch = async (input: {
 
     await Promise.all(input.queries.map(search));
 
+    // Give the picker a domain-balanced candidate list so its choices are not
+    // decided by whichever site happened to return the most rows.
+    const pickerCandidates =
+      sites.length > 0
+        ? balanceByDomain(
+            searchResults,
+            sites,
+            searchResults.length,
+            (r) => r.metadata.url,
+          )
+        : searchResults;
+
     const pickerPrompt = `
       Assistant is an AI search result picker. Assistant's task is to pick 2-3 of the most relevant search results based off the query which can be then scraped for information to answer the query.
       Assistant will be shared with the search results retrieved from a search engine along with the queries used to retrieve those results. Assistant will then pick maxiumum 3 of the most relevant search results based on the queries and the content of the search results. Assistant should only pick search results that are relevant to the query and can help in answering the question.
@@ -302,7 +345,7 @@ export const executeSearch = async (input: {
         },
         {
           role: 'user',
-          content: `<queries>${input.queries.join(', ')}</queries>\n<search_results>${searchResults.map((result, index) => `<result indice=${index}>${JSON.stringify(result)}</result>`).join('\n')}</search_results>`,
+          content: `<queries>${input.queries.join(', ')}</queries>\n<search_results>${pickerCandidates.map((result, index) => `<result indice=${index}>${JSON.stringify(result)}</result>`).join('\n')}</search_results>`,
         },
       ],
       signal: input.signal,
@@ -310,7 +353,7 @@ export const executeSearch = async (input: {
 
     const pickedIndices = pickerResponse.picked_indices.slice(0, 3);
     const pickedResults = pickedIndices
-      .map((i) => searchResults[i])
+      .map((i) => pickerCandidates[i])
       .filter((r) => r !== undefined);
 
     const alreadyExtractedURLs: string[] = [];

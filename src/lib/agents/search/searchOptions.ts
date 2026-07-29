@@ -4,6 +4,7 @@ export type SearchOptions = {
   language?: string;
   pageno?: number;
   time_range?: 'day' | 'month' | 'year';
+  safesearch?: 0 | 1 | 2;
 };
 
 export const mergeSearxngSearchOptions = (
