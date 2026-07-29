@@ -16,4 +16,8 @@ test('the full image checks out the verified SearXNG revision', async () => {
     dockerfile,
     /git -C "\/usr\/local\/searxng\/searxng-src" checkout "\$SEARXNG_REF"/,
   );
+  assert.match(
+    dockerfile,
+    /COPY searxng\/engines\/google_cse\.py "\/usr\/local\/searxng\/searxng-src\/searx\/engines\/google_cse\.py"|COPY searxng\/engines\/google_cse\.py \/usr\/local\/searxng\/searxng-src\/searx\/engines\/google_cse\.py/,
+  );
 });

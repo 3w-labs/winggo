@@ -69,6 +69,7 @@ USER root
 COPY searxng/engines/naver_web.py /usr/local/searxng/searxng-src/searx/engines/naver_web.py
 COPY searxng/engines/naver_blog.py /usr/local/searxng/searxng-src/searx/engines/naver_blog.py
 COPY searxng/engines/korean_site_search.py /usr/local/searxng/searxng-src/searx/engines/korean_site_search.py
+COPY searxng/engines/google_cse.py /usr/local/searxng/searxng-src/searx/engines/google_cse.py
 COPY searxng/engines/fmkorea_google.py /usr/local/searxng/searxng-src/searx/engines/fmkorea_google.py
 
 WORKDIR /home/vane
