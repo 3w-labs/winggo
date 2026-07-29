@@ -35,8 +35,144 @@ test('returns the extended response and forwards the request signal', async () =
     optimizationMode: 'speed',
     answer: 'answer',
     results: [],
-    meta: { requestId: 'request-1', elapsedMs: 0 },
+    citations: [],
+    meta: { requestId: 'request-1', elapsedMs: 0, danglingCitations: [] },
   });
+});
+
+test('results-only requests search without loading a model', async () => {
+  let modelsRequested = false;
+  const searched: string[] = [];
+
+  const response = await handleCompatSearch(
+    new Request(
+      'http://localhost/api/search/compat?q=아이유&sites=namu.wiki,brunch.co.kr',
+    ),
+    {
+      getModels: async () => {
+        modelsRequested = true;
+        throw new Error('models must not be loaded in results-only mode');
+      },
+      searchSearxng: async (query) => {
+        searched.push(query);
+        const host = query.startsWith('site:namu.wiki')
+          ? 'namu.wiki'
+          : 'brunch.co.kr';
+
+        return {
+          results: [
+            { title: `${host} 1`, url: `https://${host}/1`, content: 'a' },
+            { title: `${host} 2`, url: `https://${host}/2`, content: 'b' },
+            { title: 'off site', url: 'https://example.com/x', content: 'c' },
+          ],
+          // both fan-out queries hit the same throttled engine
+          unresponsiveEngines: [['google', 'Suspended: too many requests']],
+        };
+      },
+      runSearch: async () => {
+        throw new Error('AI search must not run in results-only mode');
+      },
+      createRequestId: () => 'results-request',
+      now: () => 0,
+    },
+  );
+
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(modelsRequested, false);
+  assert.deepEqual(searched, [
+    'site:namu.wiki 아이유',
+    'site:brunch.co.kr 아이유',
+  ]);
+  assert.ok(!('answer' in body));
+  // reported once even though every fan-out query saw it
+  assert.deepEqual(body.unresponsive_engines, [
+    ['google', 'Suspended: too many requests'],
+  ]);
+  // one turn each, off-site rows dropped
+  assert.deepEqual(
+    body.results.map((r: { url: string }) => r.url),
+    [
+      'https://namu.wiki/1',
+      'https://brunch.co.kr/1',
+      'https://namu.wiki/2',
+      'https://brunch.co.kr/2',
+    ],
+  );
+});
+
+test('results-only search does not leak sites into SearXNG options', async () => {
+  const calls: Array<{
+    query: string;
+    opts: Record<string, unknown> | undefined;
+  }> = [];
+
+  const response = await handleCompatSearch(
+    new Request(
+      'http://localhost/search?q=scope&sites=one.example,two.example&safesearch=2',
+    ),
+    {
+      getModels: async () => {
+        throw new Error('models must not be loaded');
+      },
+      searchSearxng: async (query, opts) => {
+        calls.push({ query, opts });
+        const host = query.startsWith('site:one.example')
+          ? 'one.example'
+          : 'two.example';
+        return {
+          results: [
+            { title: host, url: `https://${host}/result`, content: '' },
+          ],
+        };
+      },
+      runSearch: async () => {
+        throw new Error('AI search must not run');
+      },
+      createRequestId: () => 'no-sites-leak',
+      now: () => 0,
+    },
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(
+    calls.map(({ query }) => query),
+    ['site:one.example scope', 'site:two.example scope'],
+  );
+  for (const { opts } of calls) {
+    assert.equal(Object.hasOwn(opts ?? {}, 'sites'), false);
+    assert.equal(opts?.safesearch, 2);
+    assert.deepEqual(opts?.engines, ['google', 'naver']);
+  }
+});
+
+test('results-only search without sites makes one unmodified query', async () => {
+  const calls: Array<{ query: string; opts?: Record<string, unknown> }> = [];
+
+  const response = await handleCompatSearch(
+    new Request('http://localhost/search?q=plain%20query&engines=naver'),
+    {
+      getModels: async () => {
+        throw new Error('models must not be loaded');
+      },
+      searchSearxng: async (query, opts) => {
+        calls.push({ query, opts });
+        return { results: [] };
+      },
+      runSearch: async () => {
+        throw new Error('AI search must not run');
+      },
+      createRequestId: () => 'plain-results',
+      now: () => 0,
+    },
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(calls, [
+    { query: 'plain query', opts: { engines: ['naver'] } },
+  ]);
+  assert.deepEqual((await response.json()).results, []);
 });
 
 test('aborting the original request aborts the search-service signal', async () => {
@@ -141,4 +277,106 @@ test('maps a deadline during model discovery to search_timeout', async () => {
   const response = await responsePromise;
   assert.equal(response.status, 504);
   assert.equal((await response.json()).error.code, 'search_timeout');
+});
+
+test('routes youtube through its own engine instead of a site: search', async () => {
+  const calls: Array<{ query: string; engines?: string[] }> = [];
+
+  const response = await handleCompatSearch(
+    new Request(
+      'http://localhost/api/search/compat?q=전입신고&sites=namu.wiki,youtube.com&engines=naver',
+    ),
+    {
+      getModels: async () => {
+        throw new Error('models must not be loaded');
+      },
+      searchSearxng: async (query, opts) => {
+        calls.push({ query, engines: (opts as { engines?: string[] })?.engines });
+        const isYoutube = !query.startsWith('site:');
+
+        return {
+          results: [
+            isYoutube
+              ? {
+                  title: 'video',
+                  url: 'https://www.youtube.com/watch?v=abc',
+                  content: 'v',
+                }
+              : { title: 'wiki', url: 'https://namu.wiki/w/x', content: 'w' },
+          ],
+        };
+      },
+      runSearch: async () => {
+        throw new Error('AI search must not run');
+      },
+      createRequestId: () => 'youtube-request',
+      now: () => 0,
+    },
+  );
+
+  const body = await response.json();
+
+  assert.deepEqual(calls, [
+    { query: 'site:namu.wiki 전입신고', engines: ['naver'] },
+    { query: '전입신고', engines: ['youtube'] },
+  ]);
+  assert.deepEqual(
+    body.results.map((r: { url: string }) => r.url),
+    ['https://namu.wiki/w/x', 'https://www.youtube.com/watch?v=abc'],
+  );
+});
+
+test('youtube override keeps the original query and does not change peer engines', async () => {
+  const calls: Array<{ query: string; engines?: string[]; safesearch?: number }> =
+    [];
+
+  const response = await handleCompatSearch(
+    new Request(
+      'http://localhost/search?q=exact%20original&sites=youtube.com,docs.example&safesearch=2',
+    ),
+    {
+      getModels: async () => {
+        throw new Error('models must not be loaded');
+      },
+      searchSearxng: async (query, opts) => {
+        calls.push({
+          query,
+          engines: opts?.engines as string[] | undefined,
+          safesearch: opts?.safesearch as number | undefined,
+        });
+        return {
+          results: query.startsWith('site:')
+            ? [
+                {
+                  title: 'docs',
+                  url: 'https://docs.example/x',
+                  content: '',
+                },
+              ]
+            : [
+                {
+                  title: 'video',
+                  url: 'https://youtube.com/watch?v=x',
+                  content: '',
+                },
+              ],
+        };
+      },
+      runSearch: async () => {
+        throw new Error('AI search must not run');
+      },
+      createRequestId: () => 'youtube-isolation',
+      now: () => 0,
+    },
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(calls, [
+    { query: 'exact original', engines: ['youtube'], safesearch: 2 },
+    {
+      query: 'site:docs.example exact original',
+      engines: ['google', 'naver'],
+      safesearch: 2,
+    },
+  ]);
 });

@@ -4,6 +4,7 @@ import BaseEmbedding from '@/lib/models/base/embedding';
 import SessionManager from '@/lib/session';
 import { ChatTurnMessage, Chunk } from '@/lib/types';
 import type { SearxngSearchOptions } from '@/lib/searxng';
+import type { SiteScope } from './siteScope';
 
 export type SearchSources = 'web' | 'discussions' | 'academic';
 
@@ -16,6 +17,7 @@ export type SearchAgentConfig = {
   realtimeSearch: boolean;
   systemInstructions: string;
   searchOptions?: SearxngSearchOptions;
+  siteScope?: SiteScope;
   widgetsEnabled?: boolean;
 };
 
@@ -128,6 +130,7 @@ export interface ResearchAction<
       mode: SearchAgentConfig['mode'];
       realtimeSearch: boolean;
       searchOptions?: SearxngSearchOptions;
+      siteScope?: SiteScope;
       signal?: AbortSignal;
     },
   ) => Promise<ActionOutput>;

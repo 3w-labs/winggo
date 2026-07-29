@@ -73,6 +73,7 @@ class ActionRegistry {
       mode: SearchAgentConfig['mode'];
       realtimeSearch: boolean;
       searchOptions?: SearchAgentConfig['searchOptions'];
+      siteScope?: SearchAgentConfig['siteScope'];
       signal?: AbortSignal;
     },
   ) {
@@ -93,6 +94,7 @@ class ActionRegistry {
       mode: SearchAgentConfig['mode'];
       realtimeSearch: boolean;
       searchOptions?: SearchAgentConfig['searchOptions'];
+      siteScope?: SearchAgentConfig['siteScope'];
       signal?: AbortSignal;
     },
   ): Promise<ActionOutput[]> {
