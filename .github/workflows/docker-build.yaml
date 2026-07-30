@@ -8,6 +8,19 @@ on:
       - 'v*'
   workflow_dispatch:
 
+# 같은 ref 의 빌드는 하나만 돌린다. 두 머지가 겹치면 두 빌드가 같은 `latest` 태그를
+# 밀어넣고 늦게 끝난 쪽이 이긴다 — 2026-07-30 에 실제로 발생했다. PR #18 빌드가
+# PR #19 빌드보다 12분 늦게 끝나면서, #19 를 포함하지 않는 이전 커밋의 이미지가
+# `latest` 를 차지했다. 커밋 순서와 태그 순서가 어긋나면 배포가 조용히 되감긴다.
+#
+# master 는 선형이라 나중 커밋의 이미지가 앞선 커밋을 모두 포함한다. 그래서 진행
+# 중인 빌드를 취소하고 최신 커밋만 남긴다 — arm64 러너에서 15~50분 걸리는 빌드를
+# 어차피 덮어쓸 이미지에 쓰지 않는다. ref 별로 그룹을 나누므로 `v*` 태그 빌드는
+# master push 에 취소되지 않는다.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   packages: write
