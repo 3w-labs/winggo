@@ -488,6 +488,14 @@ export const executeSearch = async (input: {
           extractedFacts.push({
             ...result,
             content: accumulatedContent,
+            metadata: {
+              ...result.metadata,
+              // A page that states its own date beats the engine's estimate --
+              // "3주 전" carries no day of the month.
+              ...(scrapedData.publishedDate
+                ? { publishedDate: scrapedData.publishedDate }
+                : {}),
+            },
           });
         } catch (err) {
           throwIfSearchAborted(input.signal);

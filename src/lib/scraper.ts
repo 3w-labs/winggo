@@ -2,6 +2,15 @@ import { JSDOM } from 'jsdom';
 import { Readability } from '@mozilla/readability';
 import { Mutex } from 'async-mutex';
 
+import { fetchYoutubeWatchPage, isYoutubeWatchUrl } from './youtubeWatch';
+
+export type ScrapedPage = {
+  content: string;
+  title: string;
+  /** ISO 8601, only for sources that state one exactly. */
+  publishedDate?: string;
+};
+
 class Scraper {
   private static browser: any | undefined;
   private static IDLE_KILL_TIMEOUT = 30000;
@@ -46,11 +55,27 @@ class Scraper {
     }, this.IDLE_KILL_TIMEOUT);
   }
 
-  static async scrape(
-    url: string,
-    signal?: AbortSignal,
-  ): Promise<{ content: string; title: string }> {
+  static async scrape(url: string, signal?: AbortSignal): Promise<ScrapedPage> {
     signal?.throwIfAborted();
+
+    // Readability on a watch page returns the player chrome, not the video, so
+    // the browser is skipped entirely when the page's own JSON will answer.
+    // A null means it did not, and the generic path still gets its turn.
+    if (isYoutubeWatchUrl(url)) {
+      const watch = await fetchYoutubeWatchPage(url, signal);
+
+      if (watch) {
+        return {
+          title: watch.title,
+          content: `
+        # ${watch.title || 'No title'} - ${url}
+        ${watch.description || 'No description available'}
+        `,
+          ...(watch.publishedDate ? { publishedDate: watch.publishedDate } : {}),
+        };
+      }
+    }
+
     await this.initBrowser();
     signal?.throwIfAborted();
 
