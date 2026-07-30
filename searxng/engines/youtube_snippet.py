@@ -1,21 +1,23 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""YouTube search that still returns a description snippet.
+"""YouTube search that still returns a description snippet, plus a date.
 
 Upstream ``youtube_noapi`` reads the snippet from ``videoRenderer.descriptionSnippet``
 only, and YouTube stopped shipping that field in most search responses. Every
 result then arrives with an empty ``content``, so the search pipeline is left with
 nothing but the title -- which the embedding filter usually scores too low to keep.
+Upstream also drops ``publishedTimeText``, the only date the search response
+carries, leaving every video undated for a consumer that filters on age.
 
-YouTube still serves the same text under ``detailedMetadataSnippets``, so upstream's
-results are taken as-is and the missing snippets are filled in from whichever field
-the response happens to carry. Request building, paging tokens and result ordering
-stay upstream's, so this engine only ever adds content that was already in the
-response.
+YouTube still serves the description text under ``detailedMetadataSnippets``, so
+upstream's results are taken as-is and both fields are filled in from the same
+response. Request building, paging tokens and result ordering stay upstream's, so
+this engine only ever adds what was already in the response.
 """
 
+from datetime import datetime
 from json import loads
 
-from searx.engines import youtube_noapi
+from searx.engines import relative_dates, youtube_noapi
 from searx.utils import extr
 
 about = dict(youtube_noapi.about)
@@ -34,7 +36,10 @@ MISSING_CONTENT = ('', '-', None)
 
 def response(resp):
     results = youtube_noapi.response(resp)
-    snippets = _snippets_by_video_id(resp)
+    extras = _extras_by_video_id(resp)
+    # One reading of the clock for the whole response, so two videos labelled
+    # "3주 전" cannot come out with different dates.
+    now = datetime.now()
 
     for result in results:
         # Paging tokens travel in the same list and carry no URL.
@@ -42,27 +47,50 @@ def response(resp):
             continue
 
         video_id = _video_id(result.get('url'))
-        if not video_id or result.get('content') not in MISSING_CONTENT:
+        if not video_id:
             continue
 
-        # Empty rather than "-" when nothing was found, so callers can tell a
-        # missing snippet from a snippet and fall back to the title themselves.
-        result['content'] = snippets.get(video_id, '')
+        snippet, label = extras.get(video_id, ('', ''))
+
+        if result.get('content') in MISSING_CONTENT:
+            # Empty rather than "-" when nothing was found, so callers can tell a
+            # missing snippet from a snippet and fall back to the title themselves.
+            result['content'] = snippet
+
+        published = relative_dates.parse_relative_label(label, now)
+        if published:
+            result['publishedDate'] = published
 
     return results
 
 
-def _snippets_by_video_id(resp):
-    snippets = {}
+def _extras_by_video_id(resp):
+    """Snippet text and publication label for every video in the payload."""
+    extras = {}
 
     for video in _video_renderers(_response_json(resp)):
         video_id = video.get('videoId')
-        text = _snippet_text(video)
+        if not video_id:
+            continue
 
-        if video_id and text:
-            snippets[video_id] = text
+        # A video can be rendered more than once in one payload; the first
+        # rendering that carries a field wins, so an empty repeat cannot erase it.
+        snippet, label = extras.get(video_id, ('', ''))
+        extras[video_id] = (
+            snippet or _snippet_text(video),
+            label or _published_label(video),
+        )
 
-    return snippets
+    return extras
+
+
+def _published_label(video):
+    """YouTube's reader-facing date, e.g. "3주 전" or "Streamed 6 hours ago".
+
+    Measured across ko/en/ja responses (60 labels): always ``simpleText``, never
+    the ``runs`` form the other text fields use.
+    """
+    return (video.get('publishedTimeText') or {}).get('simpleText', '')
 
 
 def _response_json(resp):

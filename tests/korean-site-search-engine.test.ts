@@ -38,6 +38,7 @@ def extract_text(nodes):
     return " ".join(" ".join("".join(node.itertext()).split()) for node in nodes).strip()
 
 searx = types.ModuleType("searx")
+engines = types.ModuleType("searx.engines")
 result_types = types.ModuleType("searx.result_types")
 utils = types.ModuleType("searx.utils")
 result_types.EngineResults = EngineResults
@@ -45,9 +46,21 @@ result_types.MainResult = MainResult
 utils.extract_text = extract_text
 sys.modules.update({
     "searx": searx,
+    "searx.engines": engines,
     "searx.result_types": result_types,
     "searx.utils": utils,
 })
+
+# The real shared parser, not a stub: relative labels are half of what this
+# engine reads, and a stubbed parser would test nothing about them.
+relative_path = pathlib.Path.cwd() / "searxng/engines/relative_dates.py"
+relative_spec = importlib.util.spec_from_file_location(
+    "searx.engines.relative_dates", relative_path
+)
+relative_dates = importlib.util.module_from_spec(relative_spec)
+sys.modules["searx.engines.relative_dates"] = relative_dates
+engines.relative_dates = relative_dates
+relative_spec.loader.exec_module(relative_dates)
 
 path = pathlib.Path.cwd() / "searxng/engines/korean_site_search.py"
 spec = importlib.util.spec_from_file_location("korean_site_search", path)
