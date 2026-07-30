@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Korean public-site search through Naver's web index."""
 
-import calendar
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from urllib.parse import urlencode, urlparse
 
 from lxml import html
 
+from searx.engines import relative_dates
 from searx.result_types import EngineResults, MainResult
 from searx.utils import extract_text
 
@@ -109,7 +109,6 @@ def _title(item):
 # The web tab renders the compact `2026.06.01.` form (56 of 56 labels measured);
 # the spaces are tolerated so a padded variant would not silently drop the date.
 _ABSOLUTE_DATE = re.compile(r"^(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.$")
-_RELATIVE_DATE = re.compile(r"^(\d+)(시간|일|주|개월|년) 전$")
 
 # Naver prefixes the description line with the publication label, as its own
 # leaf span inside the line's segment container. Measured over five live SERPs
@@ -147,41 +146,10 @@ def _parse_published_date(value, now=None):
         except ValueError:
             return None
 
-    current = now or datetime.now()
-    if value == "어제":
-        return current - timedelta(days=1)
-
-    relative = _RELATIVE_DATE.fullmatch(value)
-    if not relative:
-        return None
-
-    amount = int(relative.group(1))
-    unit = relative.group(2)
-    # Naver's relative labels are coarse: especially hours and larger units do
-    # not carry minute/second precision, so the resulting datetime is approximate.
-    if unit == "시간":
-        return current - timedelta(hours=amount)
-    if unit == "일":
-        return current - timedelta(days=amount)
-    if unit == "주":
-        return current - timedelta(weeks=amount)
-    if unit == "개월":
-        return _shift_months(current, -amount)
-    return _shift_years(current, -amount)
-
-
-def _shift_months(value, months):
-    month_index = value.year * 12 + value.month - 1 + months
-    year, zero_based_month = divmod(month_index, 12)
-    month = zero_based_month + 1
-    day = min(value.day, calendar.monthrange(year, month)[1])
-    return value.replace(year=year, month=month, day=day)
-
-
-def _shift_years(value, years):
-    year = value.year + years
-    day = min(value.day, calendar.monthrange(year, value.month)[1])
-    return value.replace(year=year, day=day)
+    # Naver writes the same relative forms YouTube does, so the parsing lives in
+    # a module both engines share. The clock is read here rather than there so
+    # this module stays the one place the engine's notion of "now" comes from.
+    return relative_dates.parse_relative_label(value, now or datetime.now())
 
 
 def _content_text(item, title):
