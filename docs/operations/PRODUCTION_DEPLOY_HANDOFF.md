@@ -1,8 +1,9 @@
 # Winggo `optimizationMode` 운영 배포 이관
 
-작성일: 2026-07-22  
+작성일: 2026-07-22 (2절 갱신: 2026-07-30)  
 대상 저장소: `3w-labs/winggo`  
-배포 커밋: `9d1658b655791ff03ff18cbf9785efa19143b392`
+최초 배포 커밋: `9d1658b655791ff03ff18cbf9785efa19143b392`  
+현재 배포 커밋: `8a9faac` (2026-07-30, PR #21 머지분)
 
 ## 1. 변경 사항
 
@@ -30,20 +31,64 @@ Winggo 호환 API는 다음 외부 파라미터를 받는다.
 모델명은 외부에서 받지 않는다. Winggo 서버에 설정된 기본 chat 모델과 embedding
 모델을 사용한다.
 
-## 2. 현재 상태
+## 2. 현재 상태 (2026-07-30 배포 기준)
 
-- `master`에 커밋 `9d1658b` push 완료
-- GitHub Actions 실행 `29901103264` 성공
-- 첫 번째 GHCR 이미지 발행 완료
-  - `ghcr.io/3w-labs/winggo:latest`
-  - `ghcr.io/3w-labs/winggo:slim-latest`
-- Caddy의 `optimizationMode` 분기는 운영 서버에 반영된 것으로 확인됨
-- 첫 번째 새 full 이미지는 가변 SearXNG upstream HEAD와 커스텀 엔진의 호환성
-  오류로 SearXNG가 기동하지 못해 이전 이미지로 롤백함
-- 롤백 후 일반 SearXNG 검색 HTTP 200을 재확인함
-- 정상 이미지의 SearXNG commit
-  `b5ef7ec8f32b7020cc0f887e26f0d01b85949d17`을 Dockerfile에 고정함
-- 고정 버전 이미지의 GitHub Actions 빌드, pull, 재기동 및 AI 검색 검증이 남아 있음
+운영은 커밋 `8a9faac` 이미지로 동작 중이다. 2026-07-22 시점에 남아 있던
+"고정 버전 이미지의 pull·재기동·AI 검색 검증"은 완료됐다.
+
+배포 확인 결과:
+
+- 컨테이너 기동 정상. `relative_dates.py` 로드 확인 (korean_site_search 8개
+  엔진이 전부 로드됨 — 누락 시 `ModuleNotFoundError` 로 죽는다)
+- AI 경로 HTTP 200, `answer` 생성됨 (`optimizationMode=speed`)
+- 유튜브 `engines=youtube`: 결과 20건, `content` 20건, `publishedDate` 20건.
+  **도쿄 데이터센터 IP 에서 유튜브 검색 응답은 봇체크에 걸리지 않는다**
+  (자막 API 는 별개로 막혀 있다 — 4절 아래 "확인된 제약" 참고)
+
+기동 로그에 남는 다음 에러는 이번 배포와 무관한 기존 항목이다.
+
+- `ahmia`, `torch` 로드 실패 — Tor 전용 엔진, 기본 비활성
+- `about.language` DeprecationWarning — 커스텀 엔진 전반
+- `wikidata` init 실패 (HTTP 403) — Wikidata 가 데이터센터 IP 를 차단
+- `X-Forwarded-For nor X-Real-IP header is set!` — 내부 헬스체크 요청
+
+### 이번 배포에 포함된 변경
+
+| PR | 내용 |
+|----|------|
+| #18 | `publishedDate` 를 compat 응답까지 관통. `korean_site_search` 가 네이버 SERP 게시일 파싱 |
+| #19 | 유튜브 스니펫 폴백 (`detailedMetadataSnippets`). 이전에는 content 가 전부 비어 있었다 |
+| #20 | 유튜브 `publishedTimeText` → `publishedDate`. ko/en 상대표현 파서를 두 엔진이 공유 |
+| #21 | 유튜브 watch 페이지를 브라우저 없이 읽어 설명 전문과 정확한 `publishDate` 획득 (quality 모드) |
+
+### 확인된 제약
+
+- **유튜브 자막은 가져올 수 없다.** watch 페이지가 `captionTracks` 를 노출하지만
+  `baseUrl` 은 HTTP 200 에 빈 응답을 준다 (4개 포맷 전부). InnerTube `/player` 도
+  ANDROID/IOS 400, WEB/MWEB `UNPLAYABLE`. yt-dlp 2025.10.14 조차 자막을 못 본다.
+  PO 토큰 프로바이더·로그인 쿠키·레지덴셜 프록시 없이는 불가능하다.
+- **`time_range` 를 걸면 엔진이 통째로 빠진다.** `time_range_support = False` 인
+  엔진은 SearXNG 가 쿼리조차 하지 않는다. `korean_site_search`(8개 사이트),
+  `naver_web`, `naver_blog` 가 해당한다. 1년 필터가 필요하면 `publishedDate` 로
+  소비자 쪽에서 거르는 편이 낫다.
+- **`sites=` 파라미터는 `korean_site_search` 를 타지 않는다.** `engines=` 를 함께
+  주지 않으면 `DEFAULT_SITE_SCOPE_ENGINES`(`google`, `naver`)로 `site:` 웹검색을
+  돌리고, 그 두 엔진은 날짜를 내보내지 않는다. 아래 미해결 항목 참고.
+
+### 미해결 / 후속
+
+- **`sites=` 라우팅**: `clien.net` 같은 전용 엔진 보유 사이트를 `sites=` 로 받으면
+  전용 엔진으로 보내야 한다. `SITE_ENGINE_OVERRIDES` 에는 `youtube.com` 만 있다.
+  매핑은 `settings.yml` 의 `allowed_domains` 에 이미 존재하므로, TS 에 다시 적을
+  경우 `settings.yml` 과 일치하는지 테스트로 결박할 것 (기존 패턴:
+  `tests/google-web-engine.test.ts` 의 CSE 오버레이 검증).
+- **`engines=clien,tistory` 경로 미검증**: `korean_site_search` 의 게시일 추출이
+  운영에서 실제로 값을 내는지 아직 확인하지 않았다.
+- **PR #22 (CI concurrency) 미머지**: 동시 머지 시 두 빌드가 같은 `latest` 태그를
+  밀어 늦게 끝난 쪽이 이긴다. 2026-07-30 에 PR #18 빌드가 #19 빌드보다 12분 늦게
+  끝나 #19 가 빠진 이미지가 `latest` 를 차지한 적이 있다.
+- **가변 태그 배포**: `latest` 대신 `${{ github.sha }}` 불변 태그를 밀면 배포가
+  커밋을 정확히 고정할 수 있다. 이 문서의 6절 절차도 함께 바뀐다.
 
 운영에는 SearXNG가 포함된 `latest` full 이미지를 사용한다. `slim-latest`는 현재
 구조에서 SearXNG `:8080`을 제공하지 않으므로 대체하면 안 된다.
