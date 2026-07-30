@@ -99,7 +99,9 @@ SearXNG 버전을 임의로 upstream HEAD로 되돌리면 안 된다. 커스텀
 		reverse_proxy perplexica-vane-1:3000 {
 			transport http {
 				dial_timeout 5s
-				response_header_timeout 190s
+				# quality 모드 타임아웃(360s)보다 커야 한다. 작으면 Caddy가 먼저 끊어
+				# Winggo의 504 search_timeout 대신 게이트웨이 오류가 나간다.
+				response_header_timeout 380s
 			}
 		}
 	}

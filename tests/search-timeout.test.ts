@@ -6,9 +6,10 @@ import {
 } from '../src/lib/agents/search/compat.ts';
 
 test('returns the exact timeout for each optimization mode', () => {
-  assert.equal(getModeTimeout('speed'), 45_000);
-  assert.equal(getModeTimeout('balanced'), 90_000);
-  assert.equal(getModeTimeout('quality'), 180_000);
+  assert.equal(getModeTimeout(undefined), 60_000);
+  assert.equal(getModeTimeout('speed'), 90_000);
+  assert.equal(getModeTimeout('balanced'), 180_000);
+  assert.equal(getModeTimeout('quality'), 360_000);
 });
 
 test('requests a Korean answer while preserving an existing instruction', () => {

@@ -126,7 +126,7 @@ test('omitting optimizationMode selects results-only mode', () => {
   const result = parseCompatSearchRequest('http://localhost/search?q=winggo');
 
   assert.equal(result.optimizationMode, undefined);
-  assert.equal(getModeTimeout(result.optimizationMode), 30_000);
+  assert.equal(getModeTimeout(result.optimizationMode), 60_000);
 });
 
 test('drops citations that point past the end of the source list', () => {

@@ -352,10 +352,14 @@ export const formatCompatResultsResponse = (input: {
 });
 
 export const getModeTimeout = (mode?: OptimizationMode): number => {
-  if (mode === undefined) return 30_000;
-  if (mode === 'speed') return 45_000;
-  if (mode === 'balanced') return 90_000;
-  return 180_000;
+  // Doubled from the original 30/45/90/180s. Scoped searches fan out one query
+  // per requested site, so a quality run can issue several times the searches
+  // it used to and the old ceiling was within seconds of the measured worst case.
+  // The gateway's response_header_timeout must stay above the quality value.
+  if (mode === undefined) return 60_000;
+  if (mode === 'speed') return 90_000;
+  if (mode === 'balanced') return 180_000;
+  return 360_000;
 };
 
 export const buildCompatSystemInstructions = (
