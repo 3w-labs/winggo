@@ -30,7 +30,7 @@ COPY drizzle ./drizzle
 
 RUN mkdir /home/vane/uploads
 
-RUN yarn add playwright
+RUN yarn add playwright --network-timeout 600000
 RUN yarn playwright install --with-deps --only-shell chromium
 
 EXPOSE 3000

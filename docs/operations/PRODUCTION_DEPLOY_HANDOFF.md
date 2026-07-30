@@ -90,7 +90,7 @@ SearXNG 버전을 임의로 upstream HEAD로 되돌리면 안 된다. 커스텀
 		header Authorization "Bearer {$SEARX_PROXY_TOKEN}"
 		method GET
 		path /search
-		query optimizationMode=*
+		query optimizationMode=* sites=*
 	}
 
 	handle @ai_search {
@@ -114,17 +114,34 @@ SearXNG 버전을 임의로 upstream HEAD로 되돌리면 안 된다. 커스텀
 }
 ```
 
+`query` 는 같은 줄에 나열하면 OR 조건이다. `optimizationMode` 가 있거나 `sites` 가 있으면
+Winggo 로 보낸다. `sites` 매처가 없으면 **목록 전용 요청(`sites` 만 있고
+`optimizationMode` 없음)이 SearXNG 로 새어 `sites` 가 조용히 무시된다.**
+
 검증 및 재시작:
 
 ```bash
 cd ~/searx-proxy
+cp Caddyfile Caddyfile.bak
 
-docker compose exec searx-proxy \
+# 편집 후
+docker compose exec -T searx-proxy \
   caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 
-docker compose restart searx-proxy
+# restart 가 아니라 재생성한다 (아래 주의 참고)
+docker compose up -d --force-recreate searx-proxy
 docker compose logs --tail=100 searx-proxy
+
+# 컨테이너가 실제로 새 파일을 보는지 확인
+docker exec searx-proxy grep "query optimizationMode" /etc/caddy/Caddyfile
 ```
+
+**주의 — `sed -i` 는 바인드 마운트를 끊는다.** `Caddyfile` 은
+`/home/ubuntu/searx-proxy/Caddyfile → /etc/caddy/Caddyfile` 로 파일 단위 바인드 마운트다.
+`sed -i` 로 고치면 새 inode 가 만들어져 컨테이너는 **옛 내용을 계속 본다**. 이때
+컨테이너 안에서 도는 `caddy validate` 도 옛 파일을 검증하므로 "Valid configuration" 이
+나와도 신뢰할 수 없다. 그래서 `restart` 가 아니라 `--force-recreate` 로 컨테이너를
+재생성해 마운트를 다시 걸어야 한다.
 
 전역 설정에 `admin off`가 있으므로 운영에서는 Caddy admin API reload보다 컨테이너
 재시작을 사용한다.
@@ -304,6 +321,81 @@ docker compose logs --tail=100 vane
 
 롤백 후 일반 검색과 AI 검색을 다시 확인한다. 이전 이미지는 AI 호환 API가 없으므로
 Caddy의 `@ai_search` 분기도 함께 되돌리지 않으면 AI 요청은 404가 된다.
+
+## 9-1. 이미지 아키텍처와 amd64 복구 절차
+
+GHCR 이미지는 **`linux/arm64` 단일 플랫폼**이다. 운영 서버(OCI Ampere)와 개발 환경이
+모두 arm64 이고, amd64 를 QEMU 에뮬레이션으로 빌드하면 30~50분이 걸리며 `yarn add` 가
+네트워크 타임아웃으로 죽는 일이 반복됐다.
+
+`docker manifest inspect ghcr.io/3w-labs/winggo:latest` 로 확인할 수 있다.
+
+### 복구가 필요한 신호
+
+- amd64 환경에서 `docker compose pull` 이 `no matching manifest for linux/amd64` 로 실패
+- GHCR 패키지 pull 이력에 amd64 다이제스트 조회가 나타남
+- 외부 기여자가 이미지 실행을 시도
+
+### 복구 A — 즉시 (에뮬레이션 감수)
+
+`.github/workflows/docker-build.yaml` 을 되돌린다.
+
+```yaml
+runs-on: ubuntu-latest                 # ubuntu-24.04-arm 에서 복원
+platforms: linux/amd64,linux/arm64     # linux/arm64 에서 복원
+
+# 이 단계를 Checkout 다음에 복원한다 (에뮬레이션에 필수)
+- name: Set up QEMU
+  uses: docker/setup-qemu-action@v3
+```
+
+전환 이전 상태라 동작이 검증돼 있다. 대가는 빌드 시간과, `yarn add` 의
+`--network-timeout` 에 계속 의존해야 한다는 점이다. 급할 때 쓰는 경로다.
+
+### 복구 B — 권장 (아키텍처별 네이티브 잡 + 매니페스트 합성)
+
+에뮬레이션 없이 두 아키텍처를 지원한다. 잡을 빌드(4개)와 머지(variant별 1개)로 나눈다.
+
+```yaml
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { variant: full, dockerfile: Dockerfile,      platform: linux/arm64, runner: ubuntu-24.04-arm }
+          - { variant: full, dockerfile: Dockerfile,      platform: linux/amd64, runner: ubuntu-latest }
+          - { variant: slim, dockerfile: Dockerfile.slim, platform: linux/arm64, runner: ubuntu-24.04-arm }
+          - { variant: slim, dockerfile: Dockerfile.slim, platform: linux/amd64, runner: ubuntu-latest }
+    runs-on: ${{ matrix.runner }}
+    # tags 대신 다이제스트만 push
+    #   outputs: type=image,name=<이미지>,push-by-digest=true,name-canonical=true,push=true
+    #   cache scope: <variant>-<platform>
+    # 다이제스트를 artifact 로 업로드
+
+  merge:
+    needs: build
+    # 다이제스트를 내려받아 매니페스트 리스트를 만들고 여기서 태그를 붙인다
+    #   docker buildx imagetools create -t <이미지>:latest <이미지>@sha256:... <이미지>@sha256:...
+```
+
+이 구조에서는 **태그가 머지 단계에서 붙는다.** 한 아키텍처가 실패하면 머지가 돌지 않아
+`:latest` 가 이전 이미지를 계속 가리킨다 — 부분 배포가 원천적으로 불가능해진다.
+
+### 복구 직후 확인
+
+```bash
+docker manifest inspect ghcr.io/3w-labs/winggo:latest | jq '[.manifests[].platform]'
+#   → arm64 와 amd64 가 모두 나와야 한다
+```
+
+### 복구 가능성을 지키기 위해 건드리지 말 것
+
+- `Dockerfile` · `Dockerfile.slim` 에 아키텍처 분기를 넣지 않는다(현재 없음).
+  넣는 순간 복구 범위가 워크플로 수정에서 이미지 수정으로 커진다
+- `provenance: false` 와 태그 목록(`:latest` · `:slim-latest` · `:<ref>-<variant>`)을 유지한다
+- **저장소를 PUBLIC 으로 유지한다.** `ubuntu-24.04-arm` 러너는 public 저장소에서 무료다.
+  private 으로 바꾸면 유료 플랜 조건이 되어 복구 A 만 선택 가능해진다
 
 ## 10. 완료 조건
 
