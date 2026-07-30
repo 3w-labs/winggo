@@ -110,5 +110,12 @@ engines:
     allowed_domains: [bobaedream.co.kr]
     disabled: false
 
+  # Same default YouTube engine with a snippet fallback, so results reach the
+  # search pipeline with a description instead of a title alone.
+  - name: youtube
+    engine: youtube_snippet
+    shortcut: yt
+    disabled: false
+
   - name: wolframalpha
     disabled: false

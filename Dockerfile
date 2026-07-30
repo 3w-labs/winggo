@@ -71,6 +71,7 @@ COPY searxng/engines/naver_blog.py /usr/local/searxng/searxng-src/searx/engines/
 COPY searxng/engines/korean_site_search.py /usr/local/searxng/searxng-src/searx/engines/korean_site_search.py
 COPY searxng/engines/google_cse.py /usr/local/searxng/searxng-src/searx/engines/google_cse.py
 COPY searxng/engines/fmkorea_google.py /usr/local/searxng/searxng-src/searx/engines/fmkorea_google.py
+COPY searxng/engines/youtube_snippet.py /usr/local/searxng/searxng-src/searx/engines/youtube_snippet.py
 
 WORKDIR /home/vane
 COPY entrypoint.sh ./entrypoint.sh
