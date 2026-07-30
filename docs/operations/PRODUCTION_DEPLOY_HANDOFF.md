@@ -90,7 +90,7 @@ SearXNG 버전을 임의로 upstream HEAD로 되돌리면 안 된다. 커스텀
 		header Authorization "Bearer {$SEARX_PROXY_TOKEN}"
 		method GET
 		path /search
-		query optimizationMode=* sites=*
+		expression query({'optimizationMode': '*'}) || query({'sites': '*'})
 	}
 
 	handle @ai_search {
@@ -116,9 +116,20 @@ SearXNG 버전을 임의로 upstream HEAD로 되돌리면 안 된다. 커스텀
 }
 ```
 
-`query` 는 같은 줄에 나열하면 OR 조건이다. `optimizationMode` 가 있거나 `sites` 가 있으면
-Winggo 로 보낸다. `sites` 매처가 없으면 **목록 전용 요청(`sites` 만 있고
-`optimizationMode` 없음)이 SearXNG 로 새어 `sites` 가 조용히 무시된다.**
+`optimizationMode` 가 있거나 `sites` 가 있으면 Winggo 로 보낸다. `sites` 매처가 없으면
+**목록 전용 요청(`sites` 만 있고 `optimizationMode` 없음)이 SearXNG 로 새어 `sites` 가
+조용히 무시된다.**
+
+**주의 — `query` 지시어를 한 줄에 나열하면 OR 이 아니라 AND 다.** 2026-07-30 배포에서
+`query optimizationMode=* sites=*` 로 적었다가 실측으로 확인했다.
+
+| 요청 | 결과 |
+| --- | --- |
+| `optimizationMode` 만 | SearXNG 로 빠짐 — **기존 운영 경로가 깨졌다** |
+| `sites` 만 | SearXNG 로 빠짐 |
+| 둘 다 | Winggo |
+
+즉 두 조건을 모두 만족해야 매칭된다. OR 이 필요하면 위처럼 `expression` 매처로 명시한다.
 
 검증 및 재시작:
 
@@ -135,7 +146,7 @@ docker compose up -d --force-recreate searx-proxy
 docker compose logs --tail=100 searx-proxy
 
 # 컨테이너가 실제로 새 파일을 보는지 확인
-docker exec searx-proxy grep "query optimizationMode" /etc/caddy/Caddyfile
+docker exec searx-proxy grep -E "expression query|response_header_timeout" /etc/caddy/Caddyfile
 ```
 
 **주의 — `sed -i` 는 바인드 마운트를 끊는다.** `Caddyfile` 은
