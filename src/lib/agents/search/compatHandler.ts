@@ -41,7 +41,12 @@ type SearxngSearch = (
   opts?: Record<string, unknown>,
   signal?: AbortSignal,
 ) => Promise<{
-  results: Array<{ title: string; url: string; content?: string }>;
+  results: Array<{
+    title: string;
+    url: string;
+    content?: string;
+    publishedDate?: string;
+  }>;
   unresponsiveEngines?: Array<[string, string]>;
 }>;
 
@@ -124,7 +129,14 @@ const runResultsOnlySearch = async (
   return {
     sources: limited.map((result) => ({
       content: result.content ?? '',
-      metadata: { title: result.title, url: result.url },
+      metadata: {
+        title: result.title,
+        url: result.url,
+        publishedDate:
+          typeof result.publishedDate === 'string'
+            ? result.publishedDate
+            : null,
+      },
     })),
     unresponsiveEngines: [...unresponsiveEngines.entries()],
   };

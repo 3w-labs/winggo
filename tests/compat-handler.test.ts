@@ -61,7 +61,12 @@ test('results-only requests search without loading a model', async () => {
 
         return {
           results: [
-            { title: `${host} 1`, url: `https://${host}/1`, content: 'a' },
+            {
+              title: `${host} 1`,
+              url: `https://${host}/1`,
+              content: 'a',
+              publishedDate: '2024-03-01T00:00:00',
+            },
             { title: `${host} 2`, url: `https://${host}/2`, content: 'b' },
             { title: 'off site', url: 'https://example.com/x', content: 'c' },
           ],
@@ -92,12 +97,23 @@ test('results-only requests search without loading a model', async () => {
   ]);
   // one turn each, off-site rows dropped
   assert.deepEqual(
-    body.results.map((r: { url: string }) => r.url),
+    body.results.map(
+      (r: { url: string; publishedDate: string | null }) => ({
+        url: r.url,
+        publishedDate: r.publishedDate,
+      }),
+    ),
     [
-      'https://namu.wiki/1',
-      'https://brunch.co.kr/1',
-      'https://namu.wiki/2',
-      'https://brunch.co.kr/2',
+      {
+        url: 'https://namu.wiki/1',
+        publishedDate: '2024-03-01T00:00:00',
+      },
+      {
+        url: 'https://brunch.co.kr/1',
+        publishedDate: '2024-03-01T00:00:00',
+      },
+      { url: 'https://namu.wiki/2', publishedDate: null },
+      { url: 'https://brunch.co.kr/2', publishedDate: null },
     ],
   );
 });

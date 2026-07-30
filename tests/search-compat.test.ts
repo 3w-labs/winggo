@@ -72,7 +72,11 @@ test('formats Winggo sources as an extended SearXNG-compatible response', () => 
     sources: [
       {
         content: 'Source text',
-        metadata: { title: 'Source title', url: 'https://example.com' },
+        metadata: {
+          title: 'Source title',
+          url: 'https://example.com',
+          publishedDate: '2024-03-01T00:00:00',
+        },
       },
     ],
     requestId: 'request-1',
@@ -88,6 +92,7 @@ test('formats Winggo sources as an extended SearXNG-compatible response', () => 
         title: 'Source title',
         url: 'https://example.com',
         content: 'Source text',
+        publishedDate: '2024-03-01T00:00:00',
       },
     ],
     citations: [],
@@ -216,12 +221,57 @@ test('results-only responses keep the SearXNG shape', () => {
   assert.deepEqual(result, {
     query: 'winggo',
     results: [
-      { title: 'Title', url: 'https://namu.wiki/w/x', content: 'Snippet' },
+      {
+        title: 'Title',
+        url: 'https://namu.wiki/w/x',
+        content: 'Snippet',
+        publishedDate: null,
+      },
     ],
     unresponsive_engines: [],
     meta: { requestId: 'request-3', elapsedMs: 7 },
   });
   assert.ok(!('answer' in result));
+});
+
+test('AI and results-only results share the publishedDate shape', () => {
+  const dated = {
+    content: 'Dated',
+    metadata: {
+      title: 'Dated',
+      url: 'https://example.com/dated',
+      publishedDate: '2021-05-04T03:02:01',
+    },
+  };
+  const undated = {
+    content: 'Undated',
+    metadata: {
+      title: 'Undated',
+      url: 'https://example.com/undated',
+      publishedDate: 123,
+    },
+  };
+
+  const ai = formatCompatSearchResponse({
+    query: 'winggo',
+    optimizationMode: 'speed',
+    message: '',
+    sources: [dated, undated],
+    requestId: 'ai-shape',
+    elapsedMs: 1,
+  });
+  const resultsOnly = formatCompatResultsResponse({
+    query: 'winggo',
+    sources: [dated, undated],
+    requestId: 'results-shape',
+    elapsedMs: 1,
+  });
+
+  assert.deepEqual(ai.results, resultsOnly.results);
+  assert.deepEqual(
+    ai.results.map(({ publishedDate }) => publishedDate),
+    ['2021-05-04T03:02:01', null],
+  );
 });
 
 test('drops citations whose result has no followable URL', () => {

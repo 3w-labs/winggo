@@ -113,6 +113,10 @@ export const executeSearch = async (input: {
                 metadata: {
                   title: r.title,
                   url: r.url,
+                  publishedDate:
+                    typeof r.publishedDate === 'string'
+                      ? r.publishedDate
+                      : null,
                   similarity: computeSimilarity(queryEmbedding, chunkEmbedding),
                   embedding: chunkEmbedding,
                 },
@@ -130,6 +134,8 @@ export const executeSearch = async (input: {
             metadata: {
               title: r.title,
               url: r.url,
+              publishedDate:
+                typeof r.publishedDate === 'string' ? r.publishedDate : null,
               similarity: 1,
               embedding: [],
             },
@@ -244,6 +250,8 @@ export const executeSearch = async (input: {
           metadata: {
             title: r.title,
             url: r.url,
+            publishedDate:
+              typeof r.publishedDate === 'string' ? r.publishedDate : null,
             similarity: 1,
             embedding: [],
           },

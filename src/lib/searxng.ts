@@ -16,6 +16,7 @@ export type SearxngUnresponsiveEngine = [engine: string, reason: string];
 interface SearxngSearchResult {
   title: string;
   url: string;
+  publishedDate?: string;
   img_src?: string;
   thumbnail_src?: string;
   thumbnail?: string;

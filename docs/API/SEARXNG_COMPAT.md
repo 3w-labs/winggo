@@ -40,7 +40,8 @@ answer in Korean.
     {
       "title": "Source title",
       "url": "https://example.com/source",
-      "content": "Relevant source content"
+      "content": "Relevant source content",
+      "publishedDate": "2024-03-01T00:00:00"
     }
   ],
   "meta": {
