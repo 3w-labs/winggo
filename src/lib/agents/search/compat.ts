@@ -207,6 +207,10 @@ const toResult = (source: CompatSource) => ({
   title: typeof source.metadata.title === 'string' ? source.metadata.title : '',
   url: typeof source.metadata.url === 'string' ? source.metadata.url : '',
   content: source.content,
+  publishedDate:
+    typeof source.metadata.publishedDate === 'string'
+      ? source.metadata.publishedDate
+      : null,
 });
 
 // Digits are unbounded on purpose: a stray [1000] must be recognised so it can
